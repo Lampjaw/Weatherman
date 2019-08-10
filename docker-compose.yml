@@ -1,0 +1,18 @@
+version: '2'
+services:
+  weatherman.discord:
+    environment:
+      Environment: "Development"
+      DBConnectionString: ""
+      DiscordToken: ""
+      DiscordClientId: ""
+      DiscordOwnerId: ""
+      YahooAppId: ""
+      YahooClientId: ""
+      YahooSecret: ""
+      DarkSkySecretKey: ""
+      HereAppId: ""
+      HereAppCode: ""
+    build:
+      context: ./
+      dockerfile: ./Dockerfile
