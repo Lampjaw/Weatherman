@@ -101,7 +101,7 @@ func (p *weatherPlugin) runCurrentWeatherCommand(bot *discordgobot.Gobot, client
 		},
 	}
 
-	if weather.Temperature >= 80 {
+	if weather.Temperature >= 80 && weather.Humidity >= 40 {
 		fields = append(fields, &discordgo.MessageEmbedField{
 			Name:   "Heat Index",
 			Value:  convertToTempString(weather.HeatIndex),
