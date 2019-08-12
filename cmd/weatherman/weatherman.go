@@ -13,7 +13,7 @@ import (
 )
 
 // VERSION of Weatherman
-const VERSION = "2.1.1"
+const VERSION = "2.1.2"
 
 func init() {
 	token = os.Getenv("DiscordToken")
@@ -69,7 +69,7 @@ func main() {
 
 	bot.RegisterPlugin(commandPlugin)
 	bot.RegisterPlugin(inviteplugin.New())
-	bot.RegisterPlugin(statsplugin.New())
+	bot.RegisterPlugin(statsplugin.New(VERSION))
 	bot.RegisterPlugin(weatherplugin.New(weatherConfig))
 
 	bot.Open()

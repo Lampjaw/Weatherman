@@ -88,34 +88,42 @@ func (p *weatherPlugin) runCurrentWeatherCommand(bot *discordgobot.Gobot, client
 	description := fmt.Sprintf("%s Currently %s and %s with a high of %s and a low of %s.", iconToEmojiMap[weather.Icon],
 		convertToTempString(weather.Temperature), weather.Condition, convertToTempString(weather.ForecastHigh), convertToTempString(weather.ForecastLow))
 
+	fields := []*discordgo.MessageEmbedField{
+		&discordgo.MessageEmbedField{
+			Name:   "Wind Speed",
+			Value:  fmt.Sprintf("%0.1f MpH", weather.WindSpeed),
+			Inline: true,
+		},
+		&discordgo.MessageEmbedField{
+			Name:   "Humidity",
+			Value:  fmt.Sprintf("%d%%", int32(weather.Humidity)),
+			Inline: true,
+		},
+	}
+
+	if weather.Temperature >= 80 {
+		fields = append(fields, &discordgo.MessageEmbedField{
+			Name:   "Heat Index",
+			Value:  convertToTempString(weather.HeatIndex),
+			Inline: true,
+		})
+	}
+
+	if weather.Temperature <= 50 && weather.WindSpeed >= 3 {
+		fields = append(fields, &discordgo.MessageEmbedField{
+			Name:   "Wind Chill",
+			Value:  convertToTempString(weather.WindChill),
+			Inline: true,
+		})
+	}
+
 	embed := &discordgo.MessageEmbed{
 		Author: &discordgo.MessageEmbedAuthor{
 			Name: buildLocationString(geoLocation),
 		},
 		Color:       0x070707,
 		Description: description,
-		Fields: []*discordgo.MessageEmbedField{
-			&discordgo.MessageEmbedField{
-				Name:   "Wind Speed",
-				Value:  fmt.Sprintf("%0.1f MpH", weather.WindSpeed),
-				Inline: true,
-			},
-			&discordgo.MessageEmbedField{
-				Name:   "Wind Chill",
-				Value:  convertToTempString(weather.WindChill),
-				Inline: true,
-			},
-			&discordgo.MessageEmbedField{
-				Name:   "Humidity",
-				Value:  fmt.Sprintf("%d%%", int32(weather.Humidity)),
-				Inline: true,
-			},
-			&discordgo.MessageEmbedField{
-				Name:   "Heat Index",
-				Value:  convertToTempString(weather.HeatIndex),
-				Inline: true,
-			},
-		},
+		Fields:      fields,
 	}
 
 	p.RLock()
