@@ -5,3 +5,4 @@ weatherman.exe
 .git
 .gitignore
 README.md
+/data

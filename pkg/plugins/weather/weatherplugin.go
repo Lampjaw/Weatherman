@@ -2,24 +2,20 @@ package weatherplugin
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/lampjaw/discordgobot"
-	"github.com/lampjaw/weatherman/pkg/darksky"
 	"github.com/lampjaw/weatherman/pkg/herelocation"
 )
 
 type weatherPlugin struct {
 	discordgobot.Plugin
-	herelocationClient *herelocation.HereLocationClient
-	darkSkyClient      *darksky.DarkSkyClient
+	manager *weatherManager
 }
 
-func New(config WeatherConfig) discordgobot.IPlugin {
+func New(config WeatherConfig) *weatherPlugin {
 	return &weatherPlugin{
-		herelocationClient: herelocation.NewClient(config.HereAppID, config.HereAppCode),
-		darkSkyClient:      darksky.NewClient(config.DarkSkySecretKey),
+		manager: newWeatherManager(config),
 	}
 }
 
@@ -34,7 +30,7 @@ func (p *weatherPlugin) Commands() []discordgobot.CommandDefinition {
 				discordgobot.CommandDefinitionArgument{
 					Optional: true,
 					Pattern:  ".*",
-					Alias:    "LocationText",
+					Alias:    "location",
 				},
 			},
 			Description: "Get the current weather for a location",
@@ -49,11 +45,26 @@ func (p *weatherPlugin) Commands() []discordgobot.CommandDefinition {
 				discordgobot.CommandDefinitionArgument{
 					Optional: true,
 					Pattern:  ".*",
-					Alias:    "LocationText",
+					Alias:    "location",
 				},
 			},
 			Description: "Get the forecasted weather for a location",
 			Callback:    p.runForecastWeatherCommand,
+		},
+		discordgobot.CommandDefinition{
+			CommandID: "weather-sethome",
+			Triggers: []string{
+				"sethome",
+			},
+			Arguments: []discordgobot.CommandDefinitionArgument{
+				discordgobot.CommandDefinitionArgument{
+					Optional: false,
+					Pattern:  ".*",
+					Alias:    "location",
+				},
+			},
+			Description: "Set a location to remember as your home",
+			Callback:    p.runSetHomeCommand,
 		},
 	}
 }
@@ -63,28 +74,16 @@ func (p *weatherPlugin) Name() string {
 }
 
 func (p *weatherPlugin) runCurrentWeatherCommand(bot *discordgobot.Gobot, client *discordgobot.DiscordClient, message discordgobot.Message, args map[string]string, trigger string) {
-	location := args["LocationText"]
+	location := args["location"]
 
-	geoLocation, err := p.herelocationClient.GetLocationByTextAsync(location)
+	weather, geoLocation, err := p.manager.getCurrentWeatherByLocation(message.UserID(), location)
 
 	if err != nil {
 		p.Lock()
-		client.SendMessage(message.Channel(), fmt.Sprintf("Failed to find location '%s'", location))
+		client.SendMessage(message.Channel(), fmt.Sprintf("%s", err))
 		p.Unlock()
 		return
 	}
-
-	darkSkyResponse, err := p.darkSkyClient.GetCurrentWeather(geoLocation.Coordinates.Latitude, geoLocation.Coordinates.Longitude)
-
-	if err != nil {
-		fmt.Println(err)
-		p.Lock()
-		client.SendMessage(message.Channel(), fmt.Sprintf("Failed to get weather for location '%s'", location))
-		p.Unlock()
-		return
-	}
-
-	weather := convertCurrentDarkSkyResponse(darkSkyResponse)
 
 	description := fmt.Sprintf("Currently %s and %s with a high of %s and a low of %s.",
 		convertToTempString(weather.Temperature), weather.Condition, convertToTempString(weather.ForecastHigh), convertToTempString(weather.ForecastLow))
@@ -108,7 +107,7 @@ func (p *weatherPlugin) runCurrentWeatherCommand(bot *discordgobot.Gobot, client
 			},
 			&discordgo.MessageEmbedField{
 				Name:   "Humidity",
-				Value:  fmt.Sprintf("%d%%", int32(weather.Humidity*100)),
+				Value:  fmt.Sprintf("%d%%", int32(weather.Humidity)),
 				Inline: true,
 			},
 			&discordgo.MessageEmbedField{
@@ -125,28 +124,16 @@ func (p *weatherPlugin) runCurrentWeatherCommand(bot *discordgobot.Gobot, client
 }
 
 func (p *weatherPlugin) runForecastWeatherCommand(bot *discordgobot.Gobot, client *discordgobot.DiscordClient, message discordgobot.Message, args map[string]string, trigger string) {
-	location := args["LocationText"]
+	location := args["location"]
 
-	geoLocation, err := p.herelocationClient.GetLocationByTextAsync(location)
+	weatherDays, geoLocation, err := p.manager.getForecastWeatherByLocation(message.UserID(), location)
 
 	if err != nil {
 		p.Lock()
-		client.SendMessage(message.Channel(), fmt.Sprintf("Failed to find location '%s'", location))
+		client.SendMessage(message.Channel(), fmt.Sprintf("%s", err))
 		p.Unlock()
 		return
 	}
-
-	darkSkyResponse, err := p.darkSkyClient.GetCurrentWeather(geoLocation.Coordinates.Latitude, geoLocation.Coordinates.Longitude)
-
-	if err != nil {
-		fmt.Println(err)
-		p.Lock()
-		client.SendMessage(message.Channel(), fmt.Sprintf("Failed to get weather for location '%s'", location))
-		p.Unlock()
-		return
-	}
-
-	weatherDays := convertForecastDarkSkyResponse(darkSkyResponse)
 
 	var messageFields []*discordgo.MessageEmbedField
 
@@ -170,6 +157,22 @@ func (p *weatherPlugin) runForecastWeatherCommand(bot *discordgobot.Gobot, clien
 	p.RLock()
 	client.SendEmbedMessage(message.Channel(), embed)
 	p.RUnlock()
+}
+
+func (p *weatherPlugin) runSetHomeCommand(bot *discordgobot.Gobot, client *discordgobot.DiscordClient, message discordgobot.Message, args map[string]string, trigger string) {
+	location := args["location"]
+
+	err := p.manager.setUserHomeLocation(message.UserID(), location)
+
+	p.Lock()
+
+	if err != nil {
+		client.SendMessage(message.Channel(), fmt.Sprintf("%s", err))
+	} else {
+		client.SendMessage(message.Channel(), "Home set!")
+	}
+
+	p.Unlock()
 }
 
 func buildLocationString(location *herelocation.GeoLocation) string {
@@ -196,49 +199,8 @@ func convertToCelsius(temp float64) float64 {
 	return (temp - 32.0) / 1.8
 }
 
-func createWeatherDay(d WeatherDay) string {
+func createWeatherDay(d *WeatherDay) string {
 	var temperatureHigh = convertToTempString(d.High)
 	var temperatureLow = convertToTempString(d.Low)
 	return fmt.Sprintf("%s: %s / %s - %s", d.Day, temperatureHigh, temperatureLow, d.Text)
-}
-
-func convertCurrentDarkSkyResponse(resp *darksky.DarkSkyResponse) *CurrentWeather {
-	currentDay := resp.Daily.Data[0]
-
-	temp := resp.Currently.Temperature
-	humidity := resp.Currently.Humidity
-	windSpeed := resp.Currently.WindSpeed
-	heatIndex := calculateHeatIndex(temp, humidity)
-	windChill := calculateWindChill(temp, windSpeed)
-
-	return &CurrentWeather{
-		Condition:    resp.Currently.Summary,
-		Temperature:  temp,
-		Humidity:     humidity,
-		WindChill:    windChill,
-		WindSpeed:    windSpeed,
-		ForecastHigh: currentDay.TemperatureHigh,
-		ForecastLow:  currentDay.TemperatureLow,
-		HeatIndex:    heatIndex,
-		Icon:         currentDay.Icon,
-	}
-}
-
-func convertForecastDarkSkyResponse(resp *darksky.DarkSkyResponse) []WeatherDay {
-	result := make([]WeatherDay, 0)
-
-	for _, day := range resp.Daily.Data {
-		date := time.Unix(day.Time, 0)
-		weatherDay := WeatherDay{
-			Date: date.Format("01/02/06"),
-			Day:  date.Format("Mon"),
-			High: day.TemperatureHigh,
-			Low:  day.TemperatureLow,
-			Text: day.Summary,
-			Icon: day.Icon,
-		}
-		result = append(result, weatherDay)
-	}
-
-	return result
 }

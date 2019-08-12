@@ -64,12 +64,12 @@ func (c *HereLocationClient) GetLocationByTextAsync(location string) (*GeoLocati
 
 	countryName := foundPlace.Address.Country
 
-	fmt.Printf("%+v", foundPlace.Address.AdditionalData)
-
-	//countryName := foundPlace.Address.AdditionalData["CountryName"]
-	//if countryName == "" {
-	//countryName = foundPlace.Address.Country
-	//}
+	for _, kvp := range foundPlace.Address.AdditionalData {
+		if kvp["CountryName"] != "" {
+			countryName = kvp["CountryName"]
+			break
+		}
+	}
 
 	return newGeoLocation(foundPlace.DisplayPosition.Latitude, foundPlace.DisplayPosition.Longitude, countryName, foundPlace.Address.State, foundPlace.Address.City), nil
 }

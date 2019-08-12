@@ -10,7 +10,7 @@ type invitePlugin struct {
 	discordgobot.Plugin
 }
 
-func New() discordgobot.IPlugin {
+func New() *invitePlugin {
 	return &invitePlugin{}
 }
 

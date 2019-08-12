@@ -12,3 +12,4 @@
 *.out
 
 docker-compose.dev.yml
+/data

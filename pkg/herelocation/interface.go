@@ -1,18 +1,14 @@
 package herelocation
 
-func newCoordinates(lat float64, long float64) *Coordinates {
-	return &Coordinates{
-		Latitude:  lat,
-		Longitude: long,
-	}
-}
-
 func newGeoLocation(lat float64, long float64, country string, region string, city string) *GeoLocation {
 	return &GeoLocation{
-		Coordinates: newCoordinates(lat, long),
-		Country:     country,
-		Region:      region,
-		City:        city,
+		Coordinates: Coordinates{
+			Latitude:  lat,
+			Longitude: long,
+		},
+		Country: country,
+		Region:  region,
+		City:    city,
 	}
 }
 
@@ -22,7 +18,7 @@ type Coordinates struct {
 }
 
 type GeoLocation struct {
-	Coordinates *Coordinates
+	Coordinates Coordinates
 	Country     string
 	Region      string
 	City        string

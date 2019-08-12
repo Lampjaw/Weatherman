@@ -17,7 +17,7 @@ type statsPlugin struct {
 	discordgobot.Plugin
 }
 
-func New() discordgobot.IPlugin {
+func New() *statsPlugin {
 	return &statsPlugin{}
 }
 

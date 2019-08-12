@@ -6,6 +6,7 @@ import (
 	"os/signal"
 
 	"github.com/lampjaw/discordgobot"
+	commandplugin "github.com/lampjaw/weatherman/pkg/plugins/command"
 	inviteplugin "github.com/lampjaw/weatherman/pkg/plugins/invite"
 	statsplugin "github.com/lampjaw/weatherman/pkg/plugins/stats"
 	weatherplugin "github.com/lampjaw/weatherman/pkg/plugins/weather"
@@ -36,10 +37,21 @@ func main() {
 		return
 	}
 
+	commandPlugin := commandplugin.New()
+
 	config := &discordgobot.GobotConf{
-		OwnerUserID:       ownerUserID,
-		ClientID:          clientID,
-		CommandPrefixFunc: getCommandPrefix,
+		OwnerUserID: ownerUserID,
+		ClientID:    clientID,
+		CommandPrefixFunc: func(bot *discordgobot.Gobot, client *discordgobot.DiscordClient, message discordgobot.Message) string {
+			channel, _ := client.Channel(message.Channel())
+			prefix, err := commandPlugin.GetGuildPrefix(channel.GuildID)
+
+			if err != nil || prefix == nil {
+				return "?"
+			}
+
+			return *prefix
+		},
 	}
 
 	bot, err := discordgobot.NewBot(token, config)
@@ -49,14 +61,15 @@ func main() {
 		return
 	}
 
-	bot.RegisterPlugin(inviteplugin.New())
-	bot.RegisterPlugin(statsplugin.New())
-
 	weatherConfig := weatherplugin.WeatherConfig{
 		HereAppID:        hereAppID,
 		HereAppCode:      hereAppCode,
 		DarkSkySecretKey: darkSkySecretKey,
 	}
+
+	bot.RegisterPlugin(commandPlugin)
+	bot.RegisterPlugin(inviteplugin.New())
+	bot.RegisterPlugin(statsplugin.New())
 	bot.RegisterPlugin(weatherplugin.New(weatherConfig))
 
 	bot.Open()
@@ -71,8 +84,4 @@ out:
 			break out
 		}
 	}
-}
-
-func getCommandPrefix(bot *discordgobot.Gobot, client *discordgobot.DiscordClient, message discordgobot.Message) string {
-	return "?"
 }
