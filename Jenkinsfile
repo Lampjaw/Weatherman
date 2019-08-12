@@ -41,12 +41,12 @@ echo -e "\\nPushed ${REPO_LABEL}:${BUILDTAG}"'''
     stage('Deploy') {
       steps {
         sh '''#!/bin/bash
-COMPOSE_PATH=$COMPOSE_PATH
+#COMPOSE_PATH=$COMPOSE_PATH
 
-BUILD_LABEL=readFile(\'buildlabel\').trim()
+#BUILD_LABEL=readFile(\'buildlabel\').trim()
 
-echo ${COMPOSE_PATH}
-echo ${BUILD_LABEL}'''
+#echo ${COMPOSE_PATH}
+#echo ${BUILD_LABEL}'''
       }
     }
   }
