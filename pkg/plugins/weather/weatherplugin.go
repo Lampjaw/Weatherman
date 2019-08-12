@@ -85,7 +85,7 @@ func (p *weatherPlugin) runCurrentWeatherCommand(bot *discordgobot.Gobot, client
 		return
 	}
 
-	description := fmt.Sprintf("Currently %s and %s with a high of %s and a low of %s.",
+	description := fmt.Sprintf("%s Currently %s and %s with a high of %s and a low of %s.", iconToEmojiMap[weather.Icon],
 		convertToTempString(weather.Temperature), weather.Condition, convertToTempString(weather.ForecastHigh), convertToTempString(weather.ForecastLow))
 
 	embed := &discordgo.MessageEmbed{
@@ -202,5 +202,5 @@ func convertToCelsius(temp float64) float64 {
 func createWeatherDay(d *WeatherDay) string {
 	var temperatureHigh = convertToTempString(d.High)
 	var temperatureLow = convertToTempString(d.Low)
-	return fmt.Sprintf("%s: %s / %s - %s", d.Day, temperatureHigh, temperatureLow, d.Text)
+	return fmt.Sprintf("%s: %s %s / %s - %s", d.Day, iconToEmojiMap[d.Icon], temperatureHigh, temperatureLow, d.Text)
 }
