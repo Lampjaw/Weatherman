@@ -14,7 +14,7 @@ import (
 )
 
 // VERSION of Weatherman
-const VERSION = "2.1.2"
+const VERSION = "2.1.3"
 
 func init() {
 	token = os.Getenv("DiscordToken")
