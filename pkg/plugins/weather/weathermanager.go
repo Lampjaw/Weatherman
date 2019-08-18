@@ -215,7 +215,7 @@ func convertCurrentDarkSkyResponse(resp *darksky.DarkSkyResponse) *CurrentWeathe
 		ForecastHigh:              currentDay.TemperatureHigh,
 		ForecastLow:               currentDay.TemperatureLow,
 		HeatIndex:                 heatIndex,
-		Icon:                      currentDay.Icon,
+		Icon:                      resp.Currently.Icon,
 		UVIndex:                   currentDay.UVIndex,
 		PrecipitationProbability:  currentDay.PrecipitationProbability * 100,
 		PrecipitationType:         currentDay.PrecipitationType,
