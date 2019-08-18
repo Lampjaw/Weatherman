@@ -4,6 +4,7 @@ go 1.12
 
 require (
 	github.com/bwmarrin/discordgo v0.19.0
+	github.com/go-redis/redis v6.15.2+incompatible // indirect
 	github.com/lampjaw/discordgobot v0.2.3
 	github.com/lampjaw/weatherman/pkg/darksky v0.0.0
 	github.com/lampjaw/weatherman/pkg/herelocation v0.0.0

@@ -14,6 +14,7 @@ type weatherManager struct {
 	repository         *repository
 	herelocationClient *herelocation.HereLocationClient
 	darkSkyClient      *darksky.DarkSkyClient
+	cacheManager       *cacheManager
 }
 
 func newWeatherManager(config WeatherConfig) *weatherManager {
@@ -21,6 +22,7 @@ func newWeatherManager(config WeatherConfig) *weatherManager {
 		repository:         newRepository(),
 		herelocationClient: herelocation.NewClient(config.HereAppID, config.HereAppCode),
 		darkSkyClient:      darksky.NewClient(config.DarkSkySecretKey),
+		cacheManager:       newCacheManager(config),
 	}
 
 	manager.repository.initRepository()
@@ -30,10 +32,6 @@ func newWeatherManager(config WeatherConfig) *weatherManager {
 
 func (l *weatherManager) setUserHomeLocation(userID string, locationQuery string) error {
 	geoLocation, err := l.getLocation(locationQuery)
-
-	if err != nil {
-		return err
-	}
 
 	locationBytes, err := json.Marshal(geoLocation)
 
@@ -59,6 +57,12 @@ func (l *weatherManager) getCurrentWeatherByLocation(userID string, locationQuer
 		return nil, nil, err
 	}
 
+	currentWeather := l.cacheManager.getCurrentWeatherResult(geoLocation)
+
+	if currentWeather != nil {
+		return currentWeather, geoLocation, nil
+	}
+
 	weatherResult, err := l.darkSkyClient.GetCurrentWeather(geoLocation.Coordinates.Latitude, geoLocation.Coordinates.Longitude)
 
 	if err != nil {
@@ -66,7 +70,10 @@ func (l *weatherManager) getCurrentWeatherByLocation(userID string, locationQuer
 		return nil, nil, errors.New("Failed to resolve weather data for this location.")
 	}
 
-	currentWeather := convertCurrentDarkSkyResponse(weatherResult)
+	currentWeather = convertCurrentDarkSkyResponse(weatherResult)
+
+	go l.cacheManager.setCurrentWeatherResult(geoLocation, currentWeather)
+
 	return currentWeather, geoLocation, nil
 }
 
@@ -77,6 +84,12 @@ func (l *weatherManager) getForecastWeatherByLocation(userID string, locationQue
 		return nil, nil, err
 	}
 
+	forecastWeather := l.cacheManager.getForecastWeatherResult(geoLocation)
+
+	if forecastWeather != nil {
+		return forecastWeather, geoLocation, nil
+	}
+
 	weatherResult, err := l.darkSkyClient.GetForecastWeather(geoLocation.Coordinates.Latitude, geoLocation.Coordinates.Longitude)
 
 	if err != nil {
@@ -84,7 +97,10 @@ func (l *weatherManager) getForecastWeatherByLocation(userID string, locationQue
 		return nil, nil, errors.New("Failed to resolve weather data for this location.")
 	}
 
-	forecastWeather := convertForecastDarkSkyResponse(weatherResult)
+	forecastWeather = convertForecastDarkSkyResponse(weatherResult)
+
+	go l.cacheManager.setForecastWeatherResult(geoLocation, forecastWeather)
+
 	return forecastWeather, geoLocation, nil
 }
 
@@ -132,6 +148,12 @@ func (l *weatherManager) updateUserLastLocation(userID string, geoLocation *here
 }
 
 func (l *weatherManager) getLocation(locationQuery string) (*herelocation.GeoLocation, error) {
+	geoLocation := l.cacheManager.getLocationResult(locationQuery)
+
+	if geoLocation != nil {
+		return geoLocation, nil
+	}
+
 	geoLocation, err := l.herelocationClient.GetLocationByTextAsync(locationQuery)
 
 	if err != nil {
@@ -142,6 +164,8 @@ func (l *weatherManager) getLocation(locationQuery string) (*herelocation.GeoLoc
 	if geoLocation == nil {
 		return nil, errors.New("Failed to find this location.")
 	}
+
+	go l.cacheManager.setLocationResult(locationQuery, geoLocation)
 
 	return geoLocation, nil
 }
@@ -182,15 +206,23 @@ func convertCurrentDarkSkyResponse(resp *darksky.DarkSkyResponse) *CurrentWeathe
 	windChill := calculateWindChill(temp, windSpeed)
 
 	return &CurrentWeather{
-		Condition:    resp.Currently.Summary,
-		Temperature:  temp,
-		Humidity:     humidity,
-		WindChill:    windChill,
-		WindSpeed:    windSpeed,
-		ForecastHigh: currentDay.TemperatureHigh,
-		ForecastLow:  currentDay.TemperatureLow,
-		HeatIndex:    heatIndex,
-		Icon:         currentDay.Icon,
+		Condition:                 resp.Currently.Summary,
+		Temperature:               temp,
+		Humidity:                  humidity,
+		WindChill:                 windChill,
+		WindSpeed:                 windSpeed,
+		WindGust:                  currentDay.WindGust,
+		ForecastHigh:              currentDay.TemperatureHigh,
+		ForecastLow:               currentDay.TemperatureLow,
+		HeatIndex:                 heatIndex,
+		Icon:                      currentDay.Icon,
+		UVIndex:                   currentDay.UVIndex,
+		PrecipitationProbability:  currentDay.PrecipitationProbability * 100,
+		PrecipitationType:         currentDay.PrecipitationType,
+		PrecipitationIntensity:    currentDay.PrecipitationIntensity,
+		PrecipitationIntensityMax: currentDay.PrecipitationIntensityMax,
+		SnowAccumulation:          currentDay.SnowAccumulation,
+		Alerts:                    resp.Alerts,
 	}
 }
 

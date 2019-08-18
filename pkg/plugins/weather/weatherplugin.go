@@ -2,6 +2,7 @@ package weatherplugin
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/lampjaw/discordgobot"
@@ -86,25 +87,54 @@ func (p *weatherPlugin) runCurrentWeatherCommand(bot *discordgobot.Gobot, client
 	}
 
 	description := fmt.Sprintf("%s Currently %s and %s with a high of %s and a low of %s.", iconToEmojiMap[weather.Icon],
-		convertToTempString(weather.Temperature), weather.Condition, convertToTempString(weather.ForecastHigh), convertToTempString(weather.ForecastLow))
+		convertToTempString(weather.Temperature, geoLocation),
+		weather.Condition,
+		convertToTempString(weather.ForecastHigh, geoLocation),
+		convertToTempString(weather.ForecastLow, geoLocation))
 
-	fields := []*discordgo.MessageEmbedField{
+	if weather.Alerts != nil && len(weather.Alerts) > 0 {
+		for _, alert := range weather.Alerts {
+			expiration := time.Unix(alert.Expires, 0).Format("02 Jan 06 15:04 MST")
+			description += fmt.Sprintf("\n\n**%s**\nExpires on %s\n%s\n[Click here for more information](%s)", alert.Title, expiration, alert.Description, alert.Uri)
+		}
+	}
+
+	fields := make([]*discordgo.MessageEmbedField, 0)
+
+	if weather.PrecipitationProbability >= 5 {
+		var precipAccumulation float64
+		if weather.SnowAccumulation > 0 && weather.PrecipitationType == "snow" {
+			precipAccumulation = weather.SnowAccumulation
+		} else if weather.PrecipitationIntensity > 0 {
+			precipAccumulation = weather.PrecipitationIntensity * 24
+		}
+
+		precipMsg := fmt.Sprintf("There is a %d%% chance of %s with an estimated accumulation of %0.1f inches",
+			int32(weather.PrecipitationProbability), weather.PrecipitationType, precipAccumulation)
+
+		fields = append(fields, &discordgo.MessageEmbedField{
+			Name:   "Precipitation",
+			Value:  precipMsg,
+			Inline: true,
+		})
+	}
+
+	fields = append(fields,
 		&discordgo.MessageEmbedField{
-			Name:   "Wind Speed",
-			Value:  fmt.Sprintf("%0.1f MpH", weather.WindSpeed),
+			Name:   "Wind",
+			Value:  fmt.Sprintf("%0.1f MpH with gusts up to %0.1f MpH", weather.WindSpeed, weather.WindGust),
 			Inline: true,
 		},
 		&discordgo.MessageEmbedField{
 			Name:   "Humidity",
 			Value:  fmt.Sprintf("%d%%", int32(weather.Humidity)),
 			Inline: true,
-		},
-	}
+		})
 
 	if weather.Temperature >= 80 && weather.Humidity >= 40 {
 		fields = append(fields, &discordgo.MessageEmbedField{
 			Name:   "Heat Index",
-			Value:  convertToTempString(weather.HeatIndex),
+			Value:  convertToTempString(weather.HeatIndex, geoLocation),
 			Inline: true,
 		})
 	}
@@ -112,7 +142,29 @@ func (p *weatherPlugin) runCurrentWeatherCommand(bot *discordgobot.Gobot, client
 	if weather.Temperature <= 50 && weather.WindSpeed >= 3 {
 		fields = append(fields, &discordgo.MessageEmbedField{
 			Name:   "Wind Chill",
-			Value:  convertToTempString(weather.WindChill),
+			Value:  convertToTempString(weather.WindChill, geoLocation),
+			Inline: true,
+		})
+	}
+
+	if weather.UVIndex > 0 {
+		var indexMsg string
+		switch {
+		case weather.UVIndex >= 0.0 && weather.UVIndex <= 2.9:
+			indexMsg = "Low"
+		case weather.UVIndex >= 3.0 && weather.UVIndex <= 5.9:
+			indexMsg = "Moderate"
+		case weather.UVIndex >= 6.0 && weather.UVIndex <= 7.9:
+			indexMsg = "High"
+		case weather.UVIndex >= 8.0 && weather.UVIndex <= 10.9:
+			indexMsg = "Very High"
+		case weather.UVIndex >= 11:
+			indexMsg = "Extreme"
+		}
+
+		fields = append(fields, &discordgo.MessageEmbedField{
+			Name:   "UV Index",
+			Value:  fmt.Sprintf("(%0.1f) %s", weather.UVIndex, indexMsg),
 			Inline: true,
 		})
 	}
@@ -121,6 +173,8 @@ func (p *weatherPlugin) runCurrentWeatherCommand(bot *discordgobot.Gobot, client
 		Author: &discordgo.MessageEmbedAuthor{
 			Name: buildLocationString(geoLocation),
 		},
+		Title:       "See more at darksky.com",
+		URL:         fmt.Sprintf("https://darksky.net/forecast/%0.4f,%0.4f", geoLocation.Coordinates.Latitude, geoLocation.Coordinates.Longitude),
 		Color:       0x070707,
 		Description: description,
 		Fields:      fields,
@@ -148,7 +202,7 @@ func (p *weatherPlugin) runForecastWeatherCommand(bot *discordgobot.Gobot, clien
 	for i := 0; i < 5; i++ {
 		var field = &discordgo.MessageEmbedField{
 			Name:   weatherDays[i].Date,
-			Value:  createWeatherDay(weatherDays[i]),
+			Value:  createWeatherDay(weatherDays[i], geoLocation),
 			Inline: false,
 		}
 		messageFields = append(messageFields, field)
@@ -158,6 +212,8 @@ func (p *weatherPlugin) runForecastWeatherCommand(bot *discordgobot.Gobot, clien
 		Author: &discordgo.MessageEmbedAuthor{
 			Name: buildLocationString(geoLocation),
 		},
+		Title:  "See more at darksky.com",
+		URL:    fmt.Sprintf("https://darksky.net/forecast/%0.4f,%0.4f", geoLocation.Coordinates.Latitude, geoLocation.Coordinates.Longitude),
 		Color:  0x070707,
 		Fields: messageFields,
 	}
@@ -198,17 +254,22 @@ func buildLocationString(location *herelocation.GeoLocation) string {
 	return fmt.Sprintf("%s%s%s", cityPart, regionPart, location.Country)
 }
 
-func convertToTempString(temp float64) string {
+func convertToTempString(temp float64, geoLocation *herelocation.GeoLocation) string {
 	var tempCelsius = convertToCelsius(temp)
-	return fmt.Sprintf("%d °F (%d °C)", int32(temp), int32(tempCelsius))
+
+	if geoLocation.Country == "USA" {
+		return fmt.Sprintf("%d °F (%d °C)", int32(temp), int32(tempCelsius))
+	}
+
+	return fmt.Sprintf("%d °C (%d °F)", int32(tempCelsius), int32(temp))
 }
 
 func convertToCelsius(temp float64) float64 {
 	return (temp - 32.0) / 1.8
 }
 
-func createWeatherDay(d *WeatherDay) string {
-	var temperatureHigh = convertToTempString(d.High)
-	var temperatureLow = convertToTempString(d.Low)
+func createWeatherDay(d *WeatherDay, geoLocation *herelocation.GeoLocation) string {
+	var temperatureHigh = convertToTempString(d.High, geoLocation)
+	var temperatureLow = convertToTempString(d.Low, geoLocation)
 	return fmt.Sprintf("%s: %s %s / %s - %s", d.Day, iconToEmojiMap[d.Icon], temperatureHigh, temperatureLow, d.Text)
 }

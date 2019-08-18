@@ -8,13 +8,18 @@ type DarkSkyResponse struct {
 }
 
 type DarkSkyCurrently struct {
-	Time                int64   `json:"time"`
-	Summary             string  `json:"summary"`
-	Icon                string  `json:"icon"`
-	Temperature         float64 `json:"temperature"`
-	ApparentTemperature float64 `json:"apparentTemperature"`
-	Humidity            float64 `json:"humidity"`
-	WindSpeed           float64 `json:"windSpeed"`
+	Time                     int64   `json:"time"`
+	Summary                  string  `json:"summary"`
+	Icon                     string  `json:"icon"`
+	PrecipitationIntensity   float64 `json:"precipIntensity"`
+	PrecipitationProbability float64 `json:"precipProbability"`
+	PrecipitationType        string  `json:"precipType"`
+	Temperature              float64 `json:"temperature"`
+	ApparentTemperature      float64 `json:"apparentTemperature"`
+	Humidity                 float64 `json:"humidity"`
+	WindSpeed                float64 `json:"windSpeed"`
+	WindGust                 float64 `json:"windGust"`
+	UVIndex                  float64 `json:"uvIndex"`
 }
 
 type DarkSkyDaily struct {
@@ -22,11 +27,18 @@ type DarkSkyDaily struct {
 }
 
 type DarkSkyDailyData struct {
-	Time            int64   `json:"time"`
-	Summary         string  `json:"summary"`
-	Icon            string  `json:"icon"`
-	TemperatureLow  float64 `json:"temperatureLow"`
-	TemperatureHigh float64 `json:"temperatureHigh"`
+	Time                      int64   `json:"time"`
+	Summary                   string  `json:"summary"`
+	Icon                      string  `json:"icon"`
+	PrecipitationIntensity    float64 `json:"precipIntensity"`
+	PrecipitationIntensityMax float64 `json:"precipIntensityMax"`
+	PrecipitationProbability  float64 `json:"precipProbability"`
+	PrecipitationType         string  `json:"precipType"`
+	SnowAccumulation          float64 `json:"precipAccumulation"`
+	TemperatureLow            float64 `json:"temperatureLow"`
+	TemperatureHigh           float64 `json:"temperatureHigh"`
+	WindGust                  float64 `json:"windGust"`
+	UVIndex                   float64 `json:"uvIndex"`
 }
 
 type DarkSkyAlert struct {

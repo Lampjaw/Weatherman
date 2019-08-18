@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"os/signal"
 
@@ -22,6 +23,8 @@ func init() {
 	hereAppID = os.Getenv("HereAppId")
 	hereAppCode = os.Getenv("HereAppCode")
 	darkSkySecretKey = os.Getenv("DarkSkySecretKey")
+	darkSkySecretKey = os.Getenv("DarkSkySecretKey")
+	redisAddress = os.Getenv("RedisAddress")
 }
 
 var token string
@@ -30,6 +33,7 @@ var ownerUserID string
 var hereAppID string
 var hereAppCode string
 var darkSkySecretKey string
+var redisAddress string
 
 func main() {
 	if token == "" {
@@ -57,7 +61,7 @@ func main() {
 	bot, err := discordgobot.NewBot(token, config)
 
 	if err != nil {
-		fmt.Sprintln("Unable to create bot: %s", err)
+		log.Printf("Unable to create bot: %s", err)
 		return
 	}
 
@@ -65,6 +69,7 @@ func main() {
 		HereAppID:        hereAppID,
 		HereAppCode:      hereAppCode,
 		DarkSkySecretKey: darkSkySecretKey,
+		RedisAddress:     redisAddress,
 	}
 
 	bot.RegisterPlugin(commandPlugin)
@@ -81,6 +86,7 @@ out:
 	for {
 		select {
 		case <-c:
+			bot.Client.Session.Close()
 			break out
 		}
 	}

@@ -5,6 +5,8 @@ go 1.12
 require (
 	github.com/lampjaw/discordgobot v0.2.3
 	github.com/lampjaw/weatherman/cmd/weatherman v0.0.0
+	github.com/onsi/ginkgo v1.8.0 // indirect
+	github.com/onsi/gomega v1.5.0 // indirect
 )
 
 replace (

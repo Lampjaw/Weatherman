@@ -13,15 +13,15 @@ func newGeoLocation(lat float64, long float64, country string, region string, ci
 }
 
 type Coordinates struct {
-	Latitude  float64
-	Longitude float64
+	Latitude  float64 `json:"Latitude"`
+	Longitude float64 `json:"Longitude"`
 }
 
 type GeoLocation struct {
-	Coordinates Coordinates
-	Country     string
-	Region      string
-	City        string
+	Coordinates Coordinates `json:"Coordinates"`
+	Country     string      `json:"Country"`
+	Region      string      `json:"Region"`
+	City        string      `json:"City"`
 }
 
 type hereResponse struct {
