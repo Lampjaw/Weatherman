@@ -95,7 +95,7 @@ func (p *weatherPlugin) runCurrentWeatherCommand(bot *discordgobot.Gobot, client
 	if weather.Alerts != nil && len(weather.Alerts) > 0 {
 		for _, alert := range weather.Alerts {
 			expiration := time.Unix(alert.Expires, 0).Format("02 Jan 06 15:04 MST")
-			description += fmt.Sprintf("\n\n**%s**\nExpires on %s\n%s\n[Click here for more information](%s)", alert.Title, expiration, alert.Description, alert.Uri)
+			description += fmt.Sprintf("\n[**%s**](%s) Until %s", alert.Title, alert.Uri, expiration)
 		}
 	}
 
