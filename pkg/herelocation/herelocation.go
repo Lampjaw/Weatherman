@@ -5,9 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"net/url"
+	"sort"
 )
 
 const HERE_URL string = "https://geocoder.api.here.com/6.2/geocode.json"
@@ -24,20 +24,42 @@ func NewClient(appID string, appCode string) *HereLocationClient {
 	}
 }
 
-func (c *HereLocationClient) GetLocationByTextAsync(location string) (*GeoLocation, error) {
-	uri := fmt.Sprintf("%s?app_id=%s&app_code=%s&searchtext=%s", HERE_URL, c.appID, c.appCode, url.QueryEscape(location))
+//GetLocationByText Resolves a location from a search string
+func (c *HereLocationClient) GetLocationByText(location string) (*GeoLocation, error) {
+	hereResponse, err := getHereResponse(c.appID, c.appCode, location)
+
+	if err != nil {
+		return nil, err
+	}
+
+	foundLocation, err := getBestRelevantLocation(hereResponse)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &GeoLocation{
+		Coordinates: Coordinates{
+			Latitude:  foundLocation.DisplayPosition.Latitude,
+			Longitude: foundLocation.DisplayPosition.Longitude,
+		},
+		Country: getCountryName(foundLocation),
+		Region:  foundLocation.Address.State,
+		City:    foundLocation.Address.City,
+	}, nil
+}
+
+func getHereResponse(appID string, appCode string, locationText string) (*hereResponse, error) {
+	uri := fmt.Sprintf("%s?app_id=%s&app_code=%s&searchtext=%s", HERE_URL, appID, appCode, url.QueryEscape(locationText))
 
 	resp, err := http.Get(uri)
 
 	if err != nil {
-		log.Printf("Failed to get %s: %s", uri, err)
-		return nil, err
+		return nil, fmt.Errorf("Failed to get %s: %s", uri, err)
 	}
 
 	if resp.StatusCode != 200 {
-		msg := fmt.Sprintf("Request to get %s returned unexpected status code %v", uri, resp.StatusCode)
-		log.Printf(msg)
-		return nil, errors.New(msg)
+		return nil, fmt.Errorf("Request to get %s returned unexpected status code %v", uri, resp.StatusCode)
 	}
 
 	defer resp.Body.Close()
@@ -47,29 +69,43 @@ func (c *HereLocationClient) GetLocationByTextAsync(location string) (*GeoLocati
 	err = json.Unmarshal(body, &hereResponse)
 
 	if err != nil {
-		msg := fmt.Sprintf("Unable to unmarshal Here data: %s", err)
-		log.Printf(msg)
-		return nil, errors.New(msg)
+		return nil, fmt.Errorf("Unable to unmarshal HERE data: %s", err)
 	}
 
-	var foundPlace *hereResponseViewResultLocation
+	return &hereResponse, nil
+}
 
-	if len(hereResponse.Response.View) > 0 && len(hereResponse.Response.View[0].Result) > 0 {
-		foundPlace = &hereResponse.Response.View[0].Result[0].Location
+func getBestRelevantLocation(data *hereResponse) (*locationType, error) {
+	var foundPlace *locationType
+
+	if len(data.Response.View) > 0 && len(data.Response.View[0].Result) > 0 {
+		results := data.Response.View[0].Result
+
+		sort.Slice(results, func(i int, j int) bool {
+			r1 := results[i]
+			r2 := results[j]
+
+			return (r1.Location.Address.Country != r2.Location.Address.Country && r1.Location.Address.Country == "USA") || r1.Relevance > r2.Relevance
+		})
+
+		foundPlace = &results[0].Location
 	}
 
 	if foundPlace == nil {
 		return nil, errors.New("Location not found")
 	}
 
-	countryName := foundPlace.Address.Country
+	return foundPlace, nil
+}
 
-	for _, kvp := range foundPlace.Address.AdditionalData {
-		if kvp["CountryName"] != "" {
-			countryName = kvp["CountryName"]
-			break
+func getCountryName(location *locationType) string {
+	if location.Address.AdditionalData != nil && len(location.Address.AdditionalData) > 0 {
+		for _, kvp := range location.Address.AdditionalData {
+			if kvp.Key == "CountryName" {
+				return kvp.Value
+			}
 		}
 	}
 
-	return newGeoLocation(foundPlace.DisplayPosition.Latitude, foundPlace.DisplayPosition.Longitude, countryName, foundPlace.Address.State, foundPlace.Address.City), nil
+	return location.Address.Country
 }

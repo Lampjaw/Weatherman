@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log"
+	"sort"
 	"time"
 
 	"github.com/lampjaw/weatherman/pkg/darksky"
@@ -154,7 +155,7 @@ func (l *weatherManager) getLocation(locationQuery string) (*herelocation.GeoLoc
 		return geoLocation, nil
 	}
 
-	geoLocation, err := l.herelocationClient.GetLocationByTextAsync(locationQuery)
+	geoLocation, err := l.herelocationClient.GetLocationByText(locationQuery)
 
 	if err != nil {
 		log.Printf("Failed to resolve location '%s': %s", locationQuery, err)
@@ -197,6 +198,22 @@ func (l *weatherManager) resolveLocationForUser(userID string, locationQuery str
 }
 
 func convertCurrentDarkSkyResponse(resp *darksky.DarkSkyResponse) *CurrentWeather {
+	sort.Slice(resp.Alerts, func(i int, j int) bool {
+		return resp.Alerts[i].Expires < resp.Alerts[j].Expires
+	})
+
+	if resp.Alerts != nil && len(resp.Alerts) > 1 {
+		for i := 0; i < len(resp.Alerts); i++ {
+			for j := i + 1; j < len(resp.Alerts); j++ {
+				if resp.Alerts[i].Uri == resp.Alerts[j].Uri && resp.Alerts[i].Expires < resp.Alerts[j].Expires {
+					resp.Alerts = append(resp.Alerts[:i], resp.Alerts[i+1:]...)
+					i--
+					break
+				}
+			}
+		}
+	}
+
 	currentDay := resp.Daily.Data[0]
 
 	temp := resp.Currently.Temperature

@@ -93,6 +93,7 @@ func (p *weatherPlugin) runCurrentWeatherCommand(bot *discordgobot.Gobot, client
 		convertToTempString(weather.ForecastLow, geoLocation))
 
 	if weather.Alerts != nil && len(weather.Alerts) > 0 {
+		description += "\n"
 		for _, alert := range weather.Alerts {
 			expiration := time.Unix(alert.Expires, 0).Format("02 Jan 06 15:04 MST")
 			description += fmt.Sprintf("\n[**%s**](%s) Until %s", alert.Title, alert.Uri, expiration)
@@ -109,14 +110,16 @@ func (p *weatherPlugin) runCurrentWeatherCommand(bot *discordgobot.Gobot, client
 			precipAccumulation = weather.PrecipitationIntensity * 24
 		}
 
-		precipMsg := fmt.Sprintf("There is a %d%% chance of %s with an estimated accumulation of %0.1f inches",
-			int32(weather.PrecipitationProbability), weather.PrecipitationType, precipAccumulation)
+		if precipAccumulation >= 0.1 {
+			precipMsg := fmt.Sprintf("There is a %d%% chance of %s with an estimated accumulation of %0.1f inches",
+				int32(weather.PrecipitationProbability), weather.PrecipitationType, precipAccumulation)
 
-		fields = append(fields, &discordgo.MessageEmbedField{
-			Name:   "Precipitation",
-			Value:  precipMsg,
-			Inline: true,
-		})
+			fields = append(fields, &discordgo.MessageEmbedField{
+				Name:   "Precipitation",
+				Value:  precipMsg,
+				Inline: true,
+			})
+		}
 	}
 
 	fields = append(fields,
@@ -257,7 +260,7 @@ func buildLocationString(location *herelocation.GeoLocation) string {
 func convertToTempString(temp float64, geoLocation *herelocation.GeoLocation) string {
 	var tempCelsius = convertToCelsius(temp)
 
-	if geoLocation.Country == "USA" {
+	if geoLocation.Country == "United States" || geoLocation.Country == "USA" {
 		return fmt.Sprintf("%d °F (%d °C)", int32(temp), int32(tempCelsius))
 	}
 
