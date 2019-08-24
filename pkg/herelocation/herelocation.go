@@ -85,7 +85,7 @@ func getBestRelevantLocation(data *hereResponse) (*locationType, error) {
 			r1 := results[i]
 			r2 := results[j]
 
-			return (r1.Location.Address.Country != r2.Location.Address.Country && r1.Location.Address.Country == "USA") || r1.Relevance > r2.Relevance
+			return r1.Relevance > r2.Relevance || (r1.Relevance == r1.Relevance && r1.Location.Address.Country != r2.Location.Address.Country && r1.Location.Address.Country == "USA")
 		})
 
 		foundPlace = &results[0].Location
