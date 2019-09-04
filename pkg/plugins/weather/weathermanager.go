@@ -198,21 +198,7 @@ func (l *weatherManager) resolveLocationForUser(userID string, locationQuery str
 }
 
 func convertCurrentDarkSkyResponse(resp *darksky.DarkSkyResponse) *CurrentWeather {
-	sort.Slice(resp.Alerts, func(i int, j int) bool {
-		return resp.Alerts[i].Expires < resp.Alerts[j].Expires
-	})
-
-	if resp.Alerts != nil && len(resp.Alerts) > 1 {
-		for i := 0; i < len(resp.Alerts); i++ {
-			for j := i + 1; j < len(resp.Alerts); j++ {
-				if resp.Alerts[i].Uri == resp.Alerts[j].Uri && resp.Alerts[i].Expires < resp.Alerts[j].Expires {
-					resp.Alerts = append(resp.Alerts[:i], resp.Alerts[i+1:]...)
-					i--
-					break
-				}
-			}
-		}
-	}
+	alerts := convertDarkSkyAlerts(resp.Alerts, resp.Timezone)
 
 	currentDay := resp.Daily.Data[0]
 
@@ -239,18 +225,26 @@ func convertCurrentDarkSkyResponse(resp *darksky.DarkSkyResponse) *CurrentWeathe
 		PrecipitationIntensity:    currentDay.PrecipitationIntensity,
 		PrecipitationIntensityMax: currentDay.PrecipitationIntensityMax,
 		SnowAccumulation:          currentDay.SnowAccumulation,
-		Alerts:                    resp.Alerts,
+		Alerts:                    alerts,
 	}
 }
 
 func convertForecastDarkSkyResponse(resp *darksky.DarkSkyResponse) []*WeatherDay {
 	result := make([]*WeatherDay, 0)
 
+	locale := getTimeLocale(resp.Timezone)
+
+	localeNow := time.Now().In(locale)
+
 	for _, day := range resp.Daily.Data {
-		date := time.Unix(day.Time, 0)
+		date := time.Unix(day.Time, 0).In(locale)
+
+		if localeNow.Month() > date.Month() || localeNow.Day() > date.Day() {
+			continue
+		}
+
 		weatherDay := &WeatherDay{
-			Date: date.Format("01/02/06"),
-			Day:  date.Format("Mon"),
+			Date: date,
 			High: day.TemperatureHigh,
 			Low:  day.TemperatureLow,
 			Text: day.Summary,
@@ -260,4 +254,47 @@ func convertForecastDarkSkyResponse(resp *darksky.DarkSkyResponse) []*WeatherDay
 	}
 
 	return result
+}
+
+func convertDarkSkyAlerts(alerts []darksky.DarkSkyAlert, tz string) []CurrentWeatherAlert {
+	sort.Slice(alerts, func(i int, j int) bool {
+		return alerts[i].Expires < alerts[j].Expires
+	})
+
+	locale := getTimeLocale(tz)
+
+	currentAlerts := make([]CurrentWeatherAlert, 0)
+
+alertLoop:
+	for i, alert := range alerts {
+		for j := i + 1; j < len(alerts); j++ {
+			if alert.Uri == alerts[j].Uri && alert.Expires < alerts[j].Expires {
+				continue alertLoop
+			}
+		}
+
+		issuedDate := time.Unix(alert.Time, 0).In(locale)
+		expirationDate := time.Unix(alert.Expires, 0).In(locale)
+
+		currentAlerts = append(currentAlerts, CurrentWeatherAlert{
+			IssuedDate:     issuedDate,
+			ExpirationDate: expirationDate,
+			Title:          alert.Title,
+			Description:    alert.Description,
+			URI:            alert.Uri,
+		})
+	}
+
+	return currentAlerts
+}
+
+func getTimeLocale(tz string) *time.Location {
+	timeLocale, err := time.LoadLocation(tz)
+
+	if err != nil {
+		log.Println(err)
+		return time.UTC
+	}
+
+	return timeLocale
 }

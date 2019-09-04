@@ -1,7 +1,8 @@
 package weatherplugin
 
 import (
-	"github.com/lampjaw/weatherman/pkg/darksky"
+	"time"
+
 	"github.com/lampjaw/weatherman/pkg/herelocation"
 )
 
@@ -31,15 +32,22 @@ type CurrentWeather struct {
 	PrecipitationIntensity    float64                  `json:"PrecipitationIntensity"`
 	PrecipitationIntensityMax float64                  `json:"PrecipitationIntensityMax"`
 	SnowAccumulation          float64                  `json:"SnowAccumulation"`
-	Alerts                    []darksky.DarkSkyAlert   `json:"Alerts"`
+	Alerts                    []CurrentWeatherAlert    `json:"Alerts"`
 	Location                  herelocation.GeoLocation `json:"Location"`
 }
 
+type CurrentWeatherAlert struct {
+	Title          string    `json:"Title"`
+	IssuedDate     time.Time `json:"IssuedDate"`
+	ExpirationDate time.Time `json:"ExpirationDate"`
+	Description    string    `json:"Description"`
+	URI            string    `json:"URI"`
+}
+
 type WeatherDay struct {
-	Date string  `json:"Date"`
-	Day  string  `json:"Day"`
-	High float64 `json:"High"`
-	Low  float64 `json:"Low"`
-	Text string  `json:"Text"`
-	Icon string  `json:"Icon"`
+	Date time.Time `json:"Date"`
+	High float64   `json:"High"`
+	Low  float64   `json:"Low"`
+	Text string    `json:"Text"`
+	Icon string    `json:"Icon"`
 }

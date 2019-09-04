@@ -2,7 +2,6 @@ package weatherplugin
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/lampjaw/discordgobot"
@@ -95,8 +94,8 @@ func (p *weatherPlugin) runCurrentWeatherCommand(bot *discordgobot.Gobot, client
 	if weather.Alerts != nil && len(weather.Alerts) > 0 {
 		description += "\n"
 		for _, alert := range weather.Alerts {
-			expiration := time.Unix(alert.Expires, 0).Format("02 Jan 06 15:04 MST")
-			description += fmt.Sprintf("\n[**%s**](%s) Until %s", alert.Title, alert.Uri, expiration)
+			expiration := alert.ExpirationDate.Format("02 Jan 06 15:04 MST")
+			description += fmt.Sprintf("\n[**%s**](%s) Until %s", alert.Title, alert.URI, expiration)
 		}
 	}
 
@@ -204,7 +203,7 @@ func (p *weatherPlugin) runForecastWeatherCommand(bot *discordgobot.Gobot, clien
 
 	for i := 0; i < 5; i++ {
 		var field = &discordgo.MessageEmbedField{
-			Name:   weatherDays[i].Date,
+			Name:   weatherDays[i].Date.Format("01/02/06"),
 			Value:  createWeatherDay(weatherDays[i], geoLocation),
 			Inline: false,
 		}
@@ -274,5 +273,5 @@ func convertToCelsius(temp float64) float64 {
 func createWeatherDay(d *WeatherDay, geoLocation *herelocation.GeoLocation) string {
 	var temperatureHigh = convertToTempString(d.High, geoLocation)
 	var temperatureLow = convertToTempString(d.Low, geoLocation)
-	return fmt.Sprintf("%s: %s %s / %s - %s", d.Day, iconToEmojiMap[d.Icon], temperatureHigh, temperatureLow, d.Text)
+	return fmt.Sprintf("%s: %s %s / %s - %s", d.Date.Format("Mon"), iconToEmojiMap[d.Icon], temperatureHigh, temperatureLow, d.Text)
 }
