@@ -29,7 +29,7 @@ func (p *weatherPlugin) Commands() []discordgobot.CommandDefinition {
 			Arguments: []discordgobot.CommandDefinitionArgument{
 				discordgobot.CommandDefinitionArgument{
 					Optional: true,
-					Pattern:  ".*",
+					Pattern:  ".+",
 					Alias:    "location",
 				},
 			},
@@ -44,7 +44,7 @@ func (p *weatherPlugin) Commands() []discordgobot.CommandDefinition {
 			Arguments: []discordgobot.CommandDefinitionArgument{
 				discordgobot.CommandDefinitionArgument{
 					Optional: true,
-					Pattern:  ".*",
+					Pattern:  ".+",
 					Alias:    "location",
 				},
 			},
@@ -58,8 +58,8 @@ func (p *weatherPlugin) Commands() []discordgobot.CommandDefinition {
 			},
 			Arguments: []discordgobot.CommandDefinitionArgument{
 				discordgobot.CommandDefinitionArgument{
-					Optional: false,
-					Pattern:  ".*",
+					Optional: true,
+					Pattern:  ".+",
 					Alias:    "location",
 				},
 			},
@@ -227,6 +227,13 @@ func (p *weatherPlugin) runForecastWeatherCommand(bot *discordgobot.Gobot, clien
 
 func (p *weatherPlugin) runSetHomeCommand(bot *discordgobot.Gobot, client *discordgobot.DiscordClient, message discordgobot.Message, args map[string]string, trigger string) {
 	location := args["location"]
+
+	if location == "" {
+		p.Lock()
+		client.SendMessage(message.Channel(), "sethome requires a location to set!")
+		p.Unlock()
+		return
+	}
 
 	err := p.manager.setUserHomeLocation(message.UserID(), location)
 
