@@ -201,7 +201,7 @@ func (p *weatherPlugin) runForecastWeatherCommand(bot *discordgobot.Gobot, clien
 
 	var messageFields []*discordgo.MessageEmbedField
 
-	for i := 0; i < 5; i++ {
+	for i := 0; i < 5 && i < len(weatherDays); i++ {
 		var field = &discordgo.MessageEmbedField{
 			Name:   weatherDays[i].Date.Format("01/02/06"),
 			Value:  createWeatherDay(weatherDays[i], geoLocation),
