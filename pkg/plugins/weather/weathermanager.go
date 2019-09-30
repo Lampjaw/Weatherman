@@ -239,9 +239,9 @@ func convertForecastDarkSkyResponse(resp *darksky.DarkSkyResponse) []*WeatherDay
 	for _, day := range resp.Daily.Data {
 		date := time.Unix(day.Time, 0).In(locale)
 
-		if localeNow.Day() > date.Day() || (localeNow.Day() < date.Day() && localeNow.Month() > date.Month()) {
-			continue
-		}
+		// if localeNow.Day() > date.Day() || (localeNow.Day() < date.Day() && localeNow.Month() > date.Month()) {
+		// 	continue
+		//}
 
 		weatherDay := &WeatherDay{
 			Date: date,
