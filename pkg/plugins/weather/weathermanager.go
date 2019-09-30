@@ -234,7 +234,7 @@ func convertForecastDarkSkyResponse(resp *darksky.DarkSkyResponse) []*WeatherDay
 
 	locale := getTimeLocale(resp.Timezone)
 
-	localeNow := time.Now().In(locale)
+	//localeNow := time.Now().In(locale)
 	
 	log.Printf("%+v", resp)
 
