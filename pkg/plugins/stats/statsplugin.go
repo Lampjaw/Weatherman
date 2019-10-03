@@ -94,13 +94,23 @@ func (p *statsPlugin) runStatsCommand(bot *discordgobot.Gobot, client *discordgo
 	if client.IsBotOwner(message) {
 		guilds := client.Guilds()
 
+		fmt.Fprintf(w, "\nConnected Guilds:\n")
+		
 		sort.SliceStable(guilds, func(i, j int) bool {
 			return guilds[i].MemberCount > guilds[j].MemberCount
 		})
 
-		fmt.Fprintf(w, "\nConnected Guilds:\n")
+		for _, guild := range guilds[:3] {
+			fmt.Fprintf(w, "%s: \t%d\n", guild.Name, guild.MemberCount)
+		}
+		
+		fmt.Fprintf(w, "----------\n")
+		
+		sort.SliceStable(guilds, func(i, j int) bool {
+			return guilds[i].JoinedAt > guilds[j].JoinedAt
+		})
 
-		for _, guild := range guilds {
+		for _, guild := range guilds[:10] {
 			fmt.Fprintf(w, "%s: \t%d\n", guild.Name, guild.MemberCount)
 		}
 	}
