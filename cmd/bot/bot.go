@@ -6,11 +6,12 @@ import (
 	"os"
 	"os/signal"
 
+	commandplugin "weatherman/pkg/plugins/command"
+	inviteplugin "weatherman/pkg/plugins/invite"
+	statsplugin "weatherman/pkg/plugins/stats"
+	weatherplugin "weatherman/pkg/plugins/weather"
+
 	"github.com/lampjaw/discordgobot"
-	commandplugin "github.com/lampjaw/weatherman/pkg/plugins/command"
-	inviteplugin "github.com/lampjaw/weatherman/pkg/plugins/invite"
-	statsplugin "github.com/lampjaw/weatherman/pkg/plugins/stats"
-	weatherplugin "github.com/lampjaw/weatherman/pkg/plugins/weather"
 )
 
 // VERSION of Weatherman
@@ -58,7 +59,7 @@ func main() {
 		},
 	}
 
-	bot, err := discordgobot.NewBot(token, config)
+	bot, err := discordgobot.NewBot(token, config, nil)
 
 	if err != nil {
 		log.Printf("Unable to create bot: %s", err)

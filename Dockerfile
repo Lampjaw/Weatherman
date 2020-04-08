@@ -1,11 +1,20 @@
-FROM golang:1.12.7 AS build-env
+FROM golang:1.12.7-alpine AS build-env
 
-ENV GO111MODULE=on
+RUN apk add -U --no-cache build-base git
 
-WORKDIR /app
+RUN mkdir /build
+RUN mkdir /bot
+WORKDIR /bot
 
-COPY . .
+ADD . .
 
-RUN CGO_ENABLED=1 GOOS=linux go build -a -installsuffix cgo -o weatherman ./cmd/weatherman/weatherman.go
+RUN go get -d ./... && \
+    go build -v -o /build/bot ./cmd/bot
 
-CMD [ "./weatherman" ]
+FROM alpine:latest
+
+RUN apk add -U --no-cache iputils ca-certificates tzdata
+
+COPY --from=build-env /build /bin
+
+CMD [ "/bin/bot" ]

@@ -14,9 +14,9 @@ func New() *invitePlugin {
 	return &invitePlugin{}
 }
 
-func (p *invitePlugin) Commands() []discordgobot.CommandDefinition {
-	return []discordgobot.CommandDefinition{
-		discordgobot.CommandDefinition{
+func (p *invitePlugin) Commands() []*discordgobot.CommandDefinition {
+	return []*discordgobot.CommandDefinition{
+		&discordgobot.CommandDefinition{
 			CommandID: "invite",
 			Triggers: []string{
 				"invite",
@@ -31,9 +31,9 @@ func (p *invitePlugin) Name() string {
 	return "Invite"
 }
 
-func (p *invitePlugin) runInviteCommand(bot *discordgobot.Gobot, client *discordgobot.DiscordClient, message discordgobot.Message, args map[string]string, trigger string) {
+func (p *invitePlugin) runInviteCommand(bot *discordgobot.Gobot, client *discordgobot.DiscordClient, payload discordgobot.CommandPayload) {
 	if bot.Config != nil && bot.Config.ClientID != "" {
-		client.SendMessage(message.Channel(), fmt.Sprintf("Please visit <https://discordapp.com/oauth2/authorize?client_id=%s&scope=bot> to add %s to your server.", bot.Config.ClientID, client.UserName()))
+		client.SendMessage(payload.Message.Channel(), fmt.Sprintf("Please visit <https://discordapp.com/oauth2/authorize?client_id=%s&scope=bot> to add %s to your server.", bot.Config.ClientID, client.UserName()))
 		return
 	}
 }

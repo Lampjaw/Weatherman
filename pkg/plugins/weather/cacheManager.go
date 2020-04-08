@@ -7,13 +7,14 @@ import (
 	"strings"
 	"time"
 
+	"weatherman/pkg/herelocation"
+
 	"github.com/go-redis/redis"
-	"github.com/lampjaw/weatherman/pkg/herelocation"
+	forecast "github.com/mlbright/darksky/v2"
 )
 
 const locationCachePrefix string = "location"
-const currrentWeatherCachePrefix string = "currentWeather"
-const forecastWeatherCachePrefix string = "forecastWeather"
+const weatherCachePrefix string = "weather"
 
 type cacheManager struct {
 	redisClient *redis.Client
@@ -35,12 +36,8 @@ func (m *cacheManager) setLocationResult(queryText string, obj *herelocation.Geo
 	setStore(m, locationCachePrefix, strings.ToLower(queryText), obj, 30*time.Minute)
 }
 
-func (m *cacheManager) setCurrentWeatherResult(geolocation *herelocation.GeoLocation, obj *CurrentWeather) {
-	cacheStoreWeather(m, currrentWeatherCachePrefix, geolocation, obj)
-}
-
-func (m *cacheManager) setForecastWeatherResult(geolocation *herelocation.GeoLocation, obj []*WeatherDay) {
-	cacheStoreWeather(m, forecastWeatherCachePrefix, geolocation, obj)
+func (m *cacheManager) setWeatherResult(geolocation *herelocation.GeoLocation, obj *forecast.Forecast) {
+	cacheStoreWeather(m, weatherCachePrefix, geolocation, obj)
 }
 
 func (m *cacheManager) getLocationResult(queryText string) *herelocation.GeoLocation {
@@ -51,18 +48,10 @@ func (m *cacheManager) getLocationResult(queryText string) *herelocation.GeoLoca
 	return result
 }
 
-func (m *cacheManager) getCurrentWeatherResult(geolocation *herelocation.GeoLocation) *CurrentWeather {
-	var result *CurrentWeather
+func (m *cacheManager) getWeatherResult(geolocation *herelocation.GeoLocation) *forecast.Forecast {
+	var result *forecast.Forecast
 
-	cacheGetWeather(m, currrentWeatherCachePrefix, geolocation, &result)
-
-	return result
-}
-
-func (m *cacheManager) getForecastWeatherResult(geolocation *herelocation.GeoLocation) []*WeatherDay {
-	var result []*WeatherDay
-
-	cacheGetWeather(m, forecastWeatherCachePrefix, geolocation, &result)
+	cacheGetWeather(m, weatherCachePrefix, geolocation, &result)
 
 	return result
 }

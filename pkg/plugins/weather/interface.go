@@ -3,7 +3,7 @@ package weatherplugin
 import (
 	"time"
 
-	"github.com/lampjaw/weatherman/pkg/herelocation"
+	"weatherman/pkg/herelocation"
 )
 
 type WeatherConfig struct {
@@ -26,7 +26,7 @@ type CurrentWeather struct {
 	ForecastLow               float64                  `json:"ForecastLow"`
 	HeatIndex                 float64                  `json:"HeatIndex"`
 	Icon                      string                   `json:"Icon"`
-	UVIndex                   float64                  `json:"UVIndex"`
+	UVIndex                   int64                    `json:"UVIndex"`
 	PrecipitationProbability  float64                  `json:"PrecipitationProbability"`
 	PrecipitationType         string                   `json:"PrecipitationType"`
 	PrecipitationIntensity    float64                  `json:"PrecipitationIntensity"`

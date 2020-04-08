@@ -21,9 +21,9 @@ func New() *commandPlugin {
 	return plugin
 }
 
-func (p *commandPlugin) Commands() []discordgobot.CommandDefinition {
-	return []discordgobot.CommandDefinition{
-		discordgobot.CommandDefinition{
+func (p *commandPlugin) Commands() []*discordgobot.CommandDefinition {
+	return []*discordgobot.CommandDefinition{
+		&discordgobot.CommandDefinition{
 			CommandID: "command-setprefix",
 			Triggers: []string{
 				"setprefix",
@@ -47,19 +47,19 @@ func (p *commandPlugin) Name() string {
 	return "Command"
 }
 
-func (p *commandPlugin) runSetPrefixCommand(bot *discordgobot.Gobot, client *discordgobot.DiscordClient, message discordgobot.Message, args map[string]string, trigger string) {
-	prefix := args["prefix"]
+func (p *commandPlugin) runSetPrefixCommand(bot *discordgobot.Gobot, client *discordgobot.DiscordClient, payload discordgobot.CommandPayload) {
+	prefix := payload.Arguments["prefix"]
 
-	channel, _ := client.Channel(message.Channel())
+	channel, _ := client.Channel(payload.Message.Channel())
 
-	err := p.repository.updateGuildPrefix(channel.GuildID, message.UserID(), prefix)
+	err := p.repository.updateGuildPrefix(channel.GuildID, payload.Message.UserID(), prefix)
 
 	p.Lock()
 
 	if err != nil {
-		client.SendMessage(message.Channel(), "Failed to set new prefix.")
+		client.SendMessage(payload.Message.Channel(), "Failed to set new prefix.")
 	} else {
-		client.SendMessage(message.Channel(), "Prefix set!")
+		client.SendMessage(payload.Message.Channel(), "Prefix set!")
 	}
 
 	p.Unlock()

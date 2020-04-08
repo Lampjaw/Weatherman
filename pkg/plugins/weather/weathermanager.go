@@ -3,27 +3,29 @@ package weatherplugin
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"sort"
 	"time"
 
-	"github.com/lampjaw/weatherman/pkg/darksky"
-	"github.com/lampjaw/weatherman/pkg/herelocation"
+	"weatherman/pkg/herelocation"
+
+	forecast "github.com/mlbright/darksky/v2"
 )
 
 type weatherManager struct {
 	repository         *repository
 	herelocationClient *herelocation.HereLocationClient
-	darkSkyClient      *darksky.DarkSkyClient
 	cacheManager       *cacheManager
+	darkskyKey         string
 }
 
 func newWeatherManager(config WeatherConfig) *weatherManager {
 	manager := &weatherManager{
 		repository:         newRepository(),
 		herelocationClient: herelocation.NewClient(config.HereAppID, config.HereAppCode),
-		darkSkyClient:      darksky.NewClient(config.DarkSkySecretKey),
 		cacheManager:       newCacheManager(config),
+		darkskyKey:         config.DarkSkySecretKey,
 	}
 
 	manager.repository.initRepository()
@@ -51,6 +53,16 @@ func (l *weatherManager) setUserHomeLocation(userID string, locationQuery string
 	return nil
 }
 
+func (l *weatherManager) deleteUserHomeLocation(userID string) error {
+	err := l.repository.deleteUser(userID)
+	if err != nil {
+		log.Printf("Failed to delete user '%s': %s", userID, err)
+		return errors.New("Failed to delete user data. Please try again later.")
+	}
+
+	return nil
+}
+
 func (l *weatherManager) getCurrentWeatherByLocation(userID string, locationQuery string) (*CurrentWeather, *herelocation.GeoLocation, error) {
 	geoLocation, err := l.resolveLocationForUser(userID, locationQuery)
 
@@ -58,24 +70,14 @@ func (l *weatherManager) getCurrentWeatherByLocation(userID string, locationQuer
 		return nil, nil, err
 	}
 
-	currentWeather := l.cacheManager.getCurrentWeatherResult(geoLocation)
-
-	if currentWeather != nil {
-		return currentWeather, geoLocation, nil
-	}
-
-	weatherResult, err := l.darkSkyClient.GetCurrentWeather(geoLocation.Coordinates.Latitude, geoLocation.Coordinates.Longitude)
+	weatherResult, err := l.getCurrentWeather(geoLocation)
 
 	if err != nil {
 		log.Printf("Failed to get current weather for '%f' lat '%f' long: %s", geoLocation.Coordinates.Latitude, geoLocation.Coordinates.Longitude, err)
 		return nil, nil, errors.New("Failed to resolve weather data for this location.")
 	}
 
-	currentWeather = convertCurrentDarkSkyResponse(weatherResult)
-
-	go l.cacheManager.setCurrentWeatherResult(geoLocation, currentWeather)
-
-	return currentWeather, geoLocation, nil
+	return weatherResult, geoLocation, nil
 }
 
 func (l *weatherManager) getForecastWeatherByLocation(userID string, locationQuery string) ([]*WeatherDay, *herelocation.GeoLocation, error) {
@@ -85,24 +87,14 @@ func (l *weatherManager) getForecastWeatherByLocation(userID string, locationQue
 		return nil, nil, err
 	}
 
-	forecastWeather := l.cacheManager.getForecastWeatherResult(geoLocation)
-
-	if forecastWeather != nil {
-		return forecastWeather, geoLocation, nil
-	}
-
-	weatherResult, err := l.darkSkyClient.GetForecastWeather(geoLocation.Coordinates.Latitude, geoLocation.Coordinates.Longitude)
+	weatherResult, err := l.getForecastWeather(geoLocation)
 
 	if err != nil {
 		log.Printf("Failed to get forecast weather for '%f' lat '%f' long: %s", geoLocation.Coordinates.Latitude, geoLocation.Coordinates.Longitude, err)
 		return nil, nil, errors.New("Failed to resolve weather data for this location.")
 	}
 
-	forecastWeather = convertForecastDarkSkyResponse(weatherResult)
-
-	go l.cacheManager.setForecastWeatherResult(geoLocation, forecastWeather)
-
-	return forecastWeather, geoLocation, nil
+	return weatherResult, geoLocation, nil
 }
 
 func (l *weatherManager) getStoredUserLocation(userID string) (*herelocation.GeoLocation, error) {
@@ -115,13 +107,11 @@ func (l *weatherManager) getStoredUserLocation(userID string) (*herelocation.Geo
 
 	var geoLocation *herelocation.GeoLocation
 
-	if userProfile == nil || (userProfile.HomeLocation == nil && userProfile.LastLocation == nil) {
+	if userProfile == nil || userProfile.HomeLocation == nil {
 		return nil, nil
-	} else if userProfile.HomeLocation != nil {
-		err = json.Unmarshal([]byte(*userProfile.HomeLocation), &geoLocation)
-	} else if userProfile.LastLocation != nil {
-		err = json.Unmarshal([]byte(*userProfile.LastLocation), &geoLocation)
 	}
+
+	err = json.Unmarshal([]byte(*userProfile.HomeLocation), &geoLocation)
 
 	if err != nil {
 		log.Printf("Failed to resolve location profile '%s': %s", userID, err)
@@ -129,23 +119,6 @@ func (l *weatherManager) getStoredUserLocation(userID string) (*herelocation.Geo
 	}
 
 	return geoLocation, nil
-}
-
-func (l *weatherManager) updateUserLastLocation(userID string, geoLocation *herelocation.GeoLocation) error {
-	locationBytes, err := json.Marshal(geoLocation)
-
-	if err != nil {
-		log.Printf("Failed to marshal geolocation for user '%s': %s", userID, err)
-		return err
-	}
-
-	err = l.repository.updateUserLastLocation(userID, string(locationBytes))
-
-	if err != nil {
-		log.Printf("Failed to update last location for user '%s': %s", userID, err)
-	}
-
-	return err
 }
 
 func (l *weatherManager) getLocation(locationQuery string) (*herelocation.GeoLocation, error) {
@@ -180,7 +153,7 @@ func (l *weatherManager) resolveLocationForUser(userID string, locationQuery str
 		}
 
 		if geoLocation == nil {
-			return nil, errors.New("No home or previous search history found. Please use `sethome <location>` to set your home.")
+			return nil, errors.New("Please include a location or set a home. To set a home use `sethome <location>`.")
 		}
 
 		return geoLocation, nil
@@ -192,13 +165,51 @@ func (l *weatherManager) resolveLocationForUser(userID string, locationQuery str
 		return nil, err
 	}
 
-	go l.updateUserLastLocation(userID, geoLocation)
-
 	return geoLocation, nil
 }
 
-func convertCurrentDarkSkyResponse(resp *darksky.DarkSkyResponse) *CurrentWeather {
-	alerts := convertDarkSkyAlerts(resp.Alerts, resp.Timezone)
+func (l *weatherManager) getCurrentWeather(geoLocation *herelocation.GeoLocation) (*CurrentWeather, error) {
+	weatherResult, err := l.getCurrentForecast(geoLocation)
+
+	if err != nil {
+		return nil, err
+	}
+
+	currentWeather := convertCurrentDarkSkyResponse(weatherResult)
+	return currentWeather, nil
+}
+
+func (l *weatherManager) getForecastWeather(geoLocation *herelocation.GeoLocation) ([]*WeatherDay, error) {
+	weatherResult, err := l.getCurrentForecast(geoLocation)
+
+	if err != nil {
+		return nil, err
+	}
+
+	forecastWeather := convertForecastDarkSkyResponse(weatherResult)
+	return forecastWeather, nil
+}
+
+func (l *weatherManager) getCurrentForecast(geoLocation *herelocation.GeoLocation) (*forecast.Forecast, error) {
+	weatherResult := l.cacheManager.getWeatherResult(geoLocation)
+
+	if weatherResult != nil {
+		return weatherResult, nil
+	}
+
+	sLat := fmt.Sprintf("%f", geoLocation.Coordinates.Latitude)
+	sLong := fmt.Sprintf("%f", geoLocation.Coordinates.Longitude)
+	weatherResult, err := forecast.Get(l.darkskyKey, sLat, sLong, "now", forecast.US, forecast.English)
+
+	if err == nil {
+		go l.cacheManager.setWeatherResult(geoLocation, weatherResult)
+	}
+
+	return weatherResult, err
+}
+
+func convertCurrentDarkSkyResponse(resp *forecast.Forecast) *CurrentWeather {
+	alerts := convertDarkSkyAlerts(resp, resp.Timezone)
 
 	currentDay := resp.Daily.Data[0]
 
@@ -215,52 +226,44 @@ func convertCurrentDarkSkyResponse(resp *darksky.DarkSkyResponse) *CurrentWeathe
 		WindChill:                 windChill,
 		WindSpeed:                 windSpeed,
 		WindGust:                  currentDay.WindGust,
-		ForecastHigh:              currentDay.TemperatureHigh,
-		ForecastLow:               currentDay.TemperatureLow,
+		ForecastHigh:              currentDay.TemperatureMax,
+		ForecastLow:               currentDay.TemperatureMin,
 		HeatIndex:                 heatIndex,
 		Icon:                      resp.Currently.Icon,
 		UVIndex:                   currentDay.UVIndex,
-		PrecipitationProbability:  currentDay.PrecipitationProbability * 100,
-		PrecipitationType:         currentDay.PrecipitationType,
-		PrecipitationIntensity:    currentDay.PrecipitationIntensity,
-		PrecipitationIntensityMax: currentDay.PrecipitationIntensityMax,
-		SnowAccumulation:          currentDay.SnowAccumulation,
+		PrecipitationProbability:  currentDay.PrecipProbability * 100,
+		PrecipitationType:         currentDay.PrecipType,
+		PrecipitationIntensity:    currentDay.PrecipIntensity,
+		PrecipitationIntensityMax: currentDay.PrecipIntensityMax,
+		SnowAccumulation:          currentDay.PrecipAccumulation,
 		Alerts:                    alerts,
 	}
 }
 
-func convertForecastDarkSkyResponse(resp *darksky.DarkSkyResponse) []*WeatherDay {
+func convertForecastDarkSkyResponse(resp *forecast.Forecast) []*WeatherDay {
 	result := make([]*WeatherDay, 0)
 
 	locale := getTimeLocale(resp.Timezone)
 
-	//localeNow := time.Now().In(locale)
-	
-	log.Printf("%+v", resp)
-
 	for _, day := range resp.Daily.Data {
 		date := time.Unix(day.Time, 0).In(locale)
 
-		// if localeNow.Day() > date.Day() || (localeNow.Day() < date.Day() && localeNow.Month() > date.Month()) {
-		// 	continue
-		//}
-
 		weatherDay := &WeatherDay{
 			Date: date,
-			High: day.TemperatureHigh,
-			Low:  day.TemperatureLow,
+			High: day.TemperatureMax,
+			Low:  day.TemperatureMin,
 			Text: day.Summary,
 			Icon: day.Icon,
 		}
 		result = append(result, weatherDay)
 	}
-	
-	log.Printf("%+v", result)
 
 	return result
 }
 
-func convertDarkSkyAlerts(alerts []darksky.DarkSkyAlert, tz string) []CurrentWeatherAlert {
+func convertDarkSkyAlerts(forecast *forecast.Forecast, tz string) []CurrentWeatherAlert {
+	alerts := forecast.Alerts
+
 	sort.Slice(alerts, func(i int, j int) bool {
 		return alerts[i].Expires < alerts[j].Expires
 	})
@@ -272,20 +275,20 @@ func convertDarkSkyAlerts(alerts []darksky.DarkSkyAlert, tz string) []CurrentWea
 alertLoop:
 	for i, alert := range alerts {
 		for j := i + 1; j < len(alerts); j++ {
-			if alert.Uri == alerts[j].Uri && alert.Expires < alerts[j].Expires {
+			if alert.URI == alerts[j].URI && alert.Expires < alerts[j].Expires {
 				continue alertLoop
 			}
 		}
 
 		issuedDate := time.Unix(alert.Time, 0).In(locale)
-		expirationDate := time.Unix(alert.Expires, 0).In(locale)
+		expirationDate := time.Unix(int64(alert.Expires), 0).In(locale)
 
 		currentAlerts = append(currentAlerts, CurrentWeatherAlert{
 			IssuedDate:     issuedDate,
 			ExpirationDate: expirationDate,
 			Title:          alert.Title,
 			Description:    alert.Description,
-			URI:            alert.Uri,
+			URI:            alert.URI,
 		})
 	}
 
@@ -296,7 +299,7 @@ func getTimeLocale(tz string) *time.Location {
 	timeLocale, err := time.LoadLocation(tz)
 
 	if err != nil {
-		log.Println(err)
+		log.Printf("Error reading timezone: %s", err)
 		return time.UTC
 	}
 

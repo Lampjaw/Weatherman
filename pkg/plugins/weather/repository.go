@@ -43,7 +43,7 @@ func (r *repository) initRepository() {
 }
 
 func (r *repository) getUserProfile(userID string) (*userProfile, error) {
-	stmt, err := r.Database.Prepare("select id, homeLocation, lastLocation, homeLocationChangedDate, lastLocationChangedDate from user_profile where id = ?")
+	stmt, err := r.Database.Prepare("select id, homeLocation, homeLocationChangedDate from user_profile where id = ?")
 	if err != nil {
 		return nil, err
 	}
@@ -53,9 +53,7 @@ func (r *repository) getUserProfile(userID string) (*userProfile, error) {
 	err = stmt.QueryRow(userID).Scan(
 		&record.ID,
 		&record.HomeLocation,
-		&record.LastLocation,
-		&record.HomeLocationChangedDate,
-		&record.LastLocationChangedDate)
+		&record.HomeLocationChangedDate)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
@@ -83,16 +81,14 @@ func (r *repository) updateUserHomeLocation(userID string, homeLocation string) 
 	return nil
 }
 
-func (r *repository) updateUserLastLocation(userID string, lastLocation string) error {
-	stmt, err := r.Database.Prepare("insert into user_profile (id, lastLocation, lastLocationChangedDate) values (?,?,?) on conflict (id) do update set lastLocation = excluded.lastLocation, lastLocationChangedDate = excluded.lastLocationChangedDate")
+func (r *repository) deleteUser(userID string) error {
+	stmt, err := r.Database.Prepare("delete from user_profile where id = ?")
 	if err != nil {
 		return err
 	}
 	defer stmt.Close()
 
-	now := time.Now().UTC()
-
-	_, err = stmt.Exec(userID, lastLocation, now)
+	_, err = stmt.Exec(userID)
 	if err != nil {
 		return err
 	}

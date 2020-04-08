@@ -24,9 +24,9 @@ func New(appVersion string) *statsPlugin {
 	}
 }
 
-func (p *statsPlugin) Commands() []discordgobot.CommandDefinition {
-	return []discordgobot.CommandDefinition{
-		discordgobot.CommandDefinition{
+func (p *statsPlugin) Commands() []*discordgobot.CommandDefinition {
+	return []*discordgobot.CommandDefinition{
+		&discordgobot.CommandDefinition{
 			CommandID: "stats",
 			Triggers: []string{
 				"stats",
@@ -52,7 +52,7 @@ func getDurationString(duration time.Duration) string {
 	)
 }
 
-func (p *statsPlugin) runStatsCommand(bot *discordgobot.Gobot, client *discordgobot.DiscordClient, message discordgobot.Message, args map[string]string, trigger string) {
+func (p *statsPlugin) runStatsCommand(bot *discordgobot.Gobot, client *discordgobot.DiscordClient, payload discordgobot.CommandPayload) {
 	stats := runtime.MemStats{}
 	runtime.ReadMemStats(&stats)
 
@@ -82,7 +82,7 @@ func (p *statsPlugin) runStatsCommand(bot *discordgobot.Gobot, client *discordgo
 		} else {
 			fmt.Fprintf(w, "Shards: \t%d (%d connected)\n", len(client.Sessions), shards)
 		}
-		guild, err := client.Channel(message.Channel())
+		guild, err := client.Channel(payload.Message.Channel())
 		if err == nil {
 			id, err := strconv.Atoi(guild.ID)
 			if err == nil {
@@ -91,11 +91,11 @@ func (p *statsPlugin) runStatsCommand(bot *discordgobot.Gobot, client *discordgo
 		}
 	}
 
-	if client.IsBotOwner(message) {
+	if client.IsBotOwner(payload.Message) {
 		guilds := client.Guilds()
 
 		fmt.Fprintf(w, "\nConnected Guilds:\n")
-		
+
 		sort.SliceStable(guilds, func(i, j int) bool {
 			return guilds[i].MemberCount > guilds[j].MemberCount
 		})
@@ -103,9 +103,9 @@ func (p *statsPlugin) runStatsCommand(bot *discordgobot.Gobot, client *discordgo
 		for _, guild := range guilds[:3] {
 			fmt.Fprintf(w, "%s: \t%d\n", guild.Name, guild.MemberCount)
 		}
-		
+
 		fmt.Fprintf(w, "----------\n")
-		
+
 		sort.SliceStable(guilds, func(i, j int) bool {
 			return guilds[i].JoinedAt > guilds[j].JoinedAt
 		})
@@ -127,6 +127,6 @@ func (p *statsPlugin) runStatsCommand(bot *discordgobot.Gobot, client *discordgo
 	}
 
 	p.RLock()
-	client.SendMessage(message.Channel(), out)
+	client.SendMessage(payload.Message.Channel(), out)
 	p.RUnlock()
 }

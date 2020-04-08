@@ -3,9 +3,10 @@ package weatherplugin
 import (
 	"fmt"
 
+	"weatherman/pkg/herelocation"
+
 	"github.com/bwmarrin/discordgo"
 	"github.com/lampjaw/discordgobot"
-	"github.com/lampjaw/weatherman/pkg/herelocation"
 )
 
 type weatherPlugin struct {
@@ -19,9 +20,9 @@ func New(config WeatherConfig) *weatherPlugin {
 	}
 }
 
-func (p *weatherPlugin) Commands() []discordgobot.CommandDefinition {
-	return []discordgobot.CommandDefinition{
-		discordgobot.CommandDefinition{
+func (p *weatherPlugin) Commands() []*discordgobot.CommandDefinition {
+	return []*discordgobot.CommandDefinition{
+		&discordgobot.CommandDefinition{
 			CommandID: "weather-current",
 			Triggers: []string{
 				"w",
@@ -36,7 +37,7 @@ func (p *weatherPlugin) Commands() []discordgobot.CommandDefinition {
 			Description: "Get the current weather for a location",
 			Callback:    p.runCurrentWeatherCommand,
 		},
-		discordgobot.CommandDefinition{
+		&discordgobot.CommandDefinition{
 			CommandID: "weather-forecast",
 			Triggers: []string{
 				"wf",
@@ -51,7 +52,7 @@ func (p *weatherPlugin) Commands() []discordgobot.CommandDefinition {
 			Description: "Get the forecasted weather for a location",
 			Callback:    p.runForecastWeatherCommand,
 		},
-		discordgobot.CommandDefinition{
+		&discordgobot.CommandDefinition{
 			CommandID: "weather-sethome",
 			Triggers: []string{
 				"sethome",
@@ -66,6 +67,14 @@ func (p *weatherPlugin) Commands() []discordgobot.CommandDefinition {
 			Description: "Set a location to remember as your home",
 			Callback:    p.runSetHomeCommand,
 		},
+		&discordgobot.CommandDefinition{
+			CommandID: "weather-clearhome",
+			Triggers: []string{
+				"clearhome",
+			},
+			Description: "Clear your home setting",
+			Callback:    p.runClearHomeCommand,
+		},
 	}
 }
 
@@ -73,14 +82,14 @@ func (p *weatherPlugin) Name() string {
 	return "Weather"
 }
 
-func (p *weatherPlugin) runCurrentWeatherCommand(bot *discordgobot.Gobot, client *discordgobot.DiscordClient, message discordgobot.Message, args map[string]string, trigger string) {
-	location := args["location"]
+func (p *weatherPlugin) runCurrentWeatherCommand(bot *discordgobot.Gobot, client *discordgobot.DiscordClient, payload discordgobot.CommandPayload) {
+	location := payload.Arguments["location"]
 
-	weather, geoLocation, err := p.manager.getCurrentWeatherByLocation(message.UserID(), location)
+	weather, geoLocation, err := p.manager.getCurrentWeatherByLocation(payload.Message.UserID(), location)
 
 	if err != nil {
 		p.Lock()
-		client.SendMessage(message.Channel(), fmt.Sprintf("%s", err))
+		client.SendMessage(payload.Message.Channel(), fmt.Sprintf("%s", err))
 		p.Unlock()
 		return
 	}
@@ -152,13 +161,13 @@ func (p *weatherPlugin) runCurrentWeatherCommand(bot *discordgobot.Gobot, client
 	if weather.UVIndex > 0 {
 		var indexMsg string
 		switch {
-		case weather.UVIndex >= 0.0 && weather.UVIndex <= 2.9:
+		case weather.UVIndex >= 0 && weather.UVIndex < 3:
 			indexMsg = "Low"
-		case weather.UVIndex >= 3.0 && weather.UVIndex <= 5.9:
+		case weather.UVIndex >= 3 && weather.UVIndex < 6:
 			indexMsg = "Moderate"
-		case weather.UVIndex >= 6.0 && weather.UVIndex <= 7.9:
+		case weather.UVIndex >= 6 && weather.UVIndex < 8:
 			indexMsg = "High"
-		case weather.UVIndex >= 8.0 && weather.UVIndex <= 10.9:
+		case weather.UVIndex >= 8 && weather.UVIndex < 11:
 			indexMsg = "Very High"
 		case weather.UVIndex >= 11:
 			indexMsg = "Extreme"
@@ -166,7 +175,7 @@ func (p *weatherPlugin) runCurrentWeatherCommand(bot *discordgobot.Gobot, client
 
 		fields = append(fields, &discordgo.MessageEmbedField{
 			Name:   "UV Index",
-			Value:  fmt.Sprintf("(%0.1f) %s", weather.UVIndex, indexMsg),
+			Value:  fmt.Sprintf("(%d) %s", weather.UVIndex, indexMsg),
 			Inline: true,
 		})
 	}
@@ -180,21 +189,24 @@ func (p *weatherPlugin) runCurrentWeatherCommand(bot *discordgobot.Gobot, client
 		Color:       0x070707,
 		Description: description,
 		Fields:      fields,
+		Footer: &discordgo.MessageEmbedFooter{
+			Text: "Powered by Dark Sky",
+		},
 	}
 
 	p.RLock()
-	client.SendEmbedMessage(message.Channel(), embed)
+	client.SendEmbedMessage(payload.Message.Channel(), embed)
 	p.RUnlock()
 }
 
-func (p *weatherPlugin) runForecastWeatherCommand(bot *discordgobot.Gobot, client *discordgobot.DiscordClient, message discordgobot.Message, args map[string]string, trigger string) {
-	location := args["location"]
+func (p *weatherPlugin) runForecastWeatherCommand(bot *discordgobot.Gobot, client *discordgobot.DiscordClient, payload discordgobot.CommandPayload) {
+	location := payload.Arguments["location"]
 
-	weatherDays, geoLocation, err := p.manager.getForecastWeatherByLocation(message.UserID(), location)
+	weatherDays, geoLocation, err := p.manager.getForecastWeatherByLocation(payload.Message.UserID(), location)
 
 	if err != nil {
 		p.Lock()
-		client.SendMessage(message.Channel(), fmt.Sprintf("%s", err))
+		client.SendMessage(payload.Message.Channel(), fmt.Sprintf("%s", err))
 		p.Unlock()
 		return
 	}
@@ -218,31 +230,48 @@ func (p *weatherPlugin) runForecastWeatherCommand(bot *discordgobot.Gobot, clien
 		URL:    fmt.Sprintf("https://darksky.net/forecast/%0.4f,%0.4f", geoLocation.Coordinates.Latitude, geoLocation.Coordinates.Longitude),
 		Color:  0x070707,
 		Fields: messageFields,
+		Footer: &discordgo.MessageEmbedFooter{
+			Text: "Powered by Dark Sky",
+		},
 	}
 
 	p.RLock()
-	client.SendEmbedMessage(message.Channel(), embed)
+	client.SendEmbedMessage(payload.Message.Channel(), embed)
 	p.RUnlock()
 }
 
-func (p *weatherPlugin) runSetHomeCommand(bot *discordgobot.Gobot, client *discordgobot.DiscordClient, message discordgobot.Message, args map[string]string, trigger string) {
-	location := args["location"]
+func (p *weatherPlugin) runSetHomeCommand(bot *discordgobot.Gobot, client *discordgobot.DiscordClient, payload discordgobot.CommandPayload) {
+	location := payload.Arguments["location"]
 
 	if location == "" {
 		p.Lock()
-		client.SendMessage(message.Channel(), "sethome requires a location to set!")
+		client.SendMessage(payload.Message.Channel(), "sethome requires a location to set!")
 		p.Unlock()
 		return
 	}
 
-	err := p.manager.setUserHomeLocation(message.UserID(), location)
+	err := p.manager.setUserHomeLocation(payload.Message.UserID(), location)
 
 	p.Lock()
 
 	if err != nil {
-		client.SendMessage(message.Channel(), fmt.Sprintf("%s", err))
+		client.SendMessage(payload.Message.Channel(), fmt.Sprintf("%s", err))
 	} else {
-		client.SendMessage(message.Channel(), "Home set!")
+		client.SendMessage(payload.Message.Channel(), "Home set!")
+	}
+
+	p.Unlock()
+}
+
+func (p *weatherPlugin) runClearHomeCommand(bot *discordgobot.Gobot, client *discordgobot.DiscordClient, payload discordgobot.CommandPayload) {
+	err := p.manager.deleteUserHomeLocation(payload.Message.UserID())
+
+	p.Lock()
+
+	if err != nil {
+		client.SendMessage(payload.Message.Channel(), fmt.Sprintf("%s", err))
+	} else {
+		client.SendMessage(payload.Message.Channel(), "Home cleared!")
 	}
 
 	p.Unlock()
