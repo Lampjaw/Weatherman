@@ -12,7 +12,7 @@ Just go to this link! [https://discordapp.com/oauth2/authorize?client_id=6026650
 
 `?w <location>` Returns the current conditions for a location    
 `?wf <location>` Returns the five day forecast for a location    
-`?sethome` Sets a home location so if you just type `?w` or `?wf` without any additional input it defaults to your home.
+`?sethome` Sets a home location so if you just type `?w` or `?wf` without any additional input it defaults to your home.    
 `?clearhome` Clears a previously set home location.    
 `?setprefix` Only server admins can use this one. Sets the prefix for your Discord server. Defaults to `?`    
 `?commands` Get the list of commands    
