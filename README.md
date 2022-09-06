@@ -1,3 +1,5 @@
+## 9/6/2022: Until the bot is updated to support slash commands, please @ the bot with your commands instead of using the prefix symbol. i.e `@Weatherman wf Seattle, WA`
+
 # Weatherman
 
 Weatherman is a discord bot that keeps track of the weather
