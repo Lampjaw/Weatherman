@@ -1,3 +1,5 @@
+## 4/3/2024: Unfortunately the DarkSky API has officially shut down. I'm currently looking to switch to an alternative provider so stay tuned.
+
 ## 9/6/2022: Until the bot is updated to support slash commands, please @ the bot with your commands instead of using the prefix symbol. i.e `@Weatherman wf Seattle, WA`
 
 # Weatherman
