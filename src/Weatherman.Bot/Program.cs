@@ -16,6 +16,7 @@ using Serilog.Events;
 Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Information()
     .MinimumLevel.Override("Microsoft", LogEventLevel.Error)
+    .MinimumLevel.Override("Geo.Here", LogEventLevel.Error)
     .WriteTo.Console()
     .CreateLogger();
 
