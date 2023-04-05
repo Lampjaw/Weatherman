@@ -1,6 +1,3 @@
-## 4/3/2023: Unfortunately the DarkSky API has officially shut down. I'm currently looking to switch to an alternative provider so stay tuned.
-
-## 9/6/2022: Until the bot is updated to support slash commands, please @ the bot with your commands instead of using the prefix symbol. i.e `@Weatherman wf Seattle, WA`
 
 # Weatherman
 
@@ -14,17 +11,11 @@ Just go to this link! [https://discordapp.com/oauth2/authorize?client_id=6026650
 
 ## Commands
 
-`?w <location>` Returns the current conditions for a location    
-`?wf <location>` Returns the five day forecast for a location    
-`?sethome` Sets a home location so if you just type `?w` or `?wf` without any additional input it defaults to your home.    
-`?clearhome` Clears a previously set home location.    
-`?setprefix` Only server admins can use this one. Sets the prefix for your Discord server. Defaults to `?`    
-`?commands` Get the list of commands    
-`?stats` Show some basic bot statistics    
-`?invite` Get an invite link to spread the love!
-
-
-All commands can also be used with `@Weatherman` instead of the prefix.
+`/weather now <location>` Returns the current conditions for a location    
+`/weather week <location>` Returns the five day forecast for a location    
+`/home set` Sets a home location so if you just type weather commands without an location it defaults to your home.
+`/home remove` Clears a previously set home location.
+`/invite` Get an invite link to spread the love!
 
 ---
 
