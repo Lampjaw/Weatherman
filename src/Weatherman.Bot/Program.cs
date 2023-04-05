@@ -13,12 +13,21 @@ using Weatherman.Bot.Cache;
 using Serilog;
 using Serilog.Events;
 
-Log.Logger = new LoggerConfiguration()
+var logger = new LoggerConfiguration()
     .MinimumLevel.Information()
     .MinimumLevel.Override("Microsoft", LogEventLevel.Error)
-    .MinimumLevel.Override("Geo.Here", LogEventLevel.Error)
-    .WriteTo.Console()
-    .CreateLogger();
+    .MinimumLevel.Override("System.Net.Http.HttpClient.IHereGeocoding", LogEventLevel.Error);
+
+if (string.Equals(Environment.GetEnvironmentVariable("LoggingOutput"), "flat", StringComparison.OrdinalIgnoreCase))
+{
+    logger.WriteTo.Console(outputTemplate: "[{Level:u4} {Timestamp:HH:mm:ss.fff}] {SourceContext}{NewLine}{Message} {Exception}{NewLine}");
+}
+else
+{
+    logger.WriteTo.Sink<GraylogConsoleSink>();
+}
+
+Log.Logger = logger.CreateLogger();
 
 IHost host = Host.CreateDefaultBuilder(args)
     .UseSerilog()

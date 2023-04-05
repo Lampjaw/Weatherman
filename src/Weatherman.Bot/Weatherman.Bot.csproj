@@ -15,6 +15,7 @@
     <PackageReference Include="Geo.Here" Version="1.2.1" />
     <PackageReference Include="Serilog.Extensions.Hosting" Version="5.0.1" />
     <PackageReference Include="Serilog.Sinks.Console" Version="4.1.0" />
+    <PackageReference Include="Serilog.Sinks.Graylog" Version="2.3.0" />
     <PackageReference Include="StackExchange.Redis" Version="2.6.104" />
     <PackageReference Include="TimeZoneNames" Version="6.0.0" />
   </ItemGroup>
