@@ -2,17 +2,20 @@ version: '2'
 services:
   weatherman.discord:
     environment:
-      Environment: "Development"
-      DBConnectionString: ""
       DiscordToken: ""
       DiscordClientId: ""
-      DiscordOwnerId: ""
-      YahooAppId: ""
-      YahooClientId: ""
-      YahooSecret: ""
-      DarkSkySecretKey: ""
-      HereAppId: ""
-      HereAppCode: ""
+      RedisAddress: ""
+      HereApiKey: ""
+      PirateWeatherKey: ""
     build:
       context: ./
       dockerfile: ./Dockerfile
+    volumes:
+      - ./data/weatherplugin:/data/
+    depends_on: 
+      - redis
+
+  redis:
+    image: redis:alpine
+    ports: 
+      - "6379"

@@ -1,20 +1,23 @@
-FROM golang:1.12.7-alpine AS build-env
+FROM mcr.microsoft.com/dotnet/sdk:6.0 AS build-env
+WORKDIR /app
 
-RUN apk add -U --no-cache build-base git
+# Copy and restore as distinct layers
+COPY *.sln ./
+COPY ./src/Weatherman.Bot/*.csproj ./src/Weatherman.Bot/
 
-RUN mkdir /build
-RUN mkdir /bot
-WORKDIR /bot
+RUN dotnet restore
 
-ADD . .
+# Copy everything else and build
+COPY . ./
+RUN find -type d -name bin -prune -exec rm -rf {} \; && find -type d -name obj -prune -exec rm -rf {} \;
+RUN dotnet publish -c Release -o /app/out
 
-RUN go get -d ./... && \
-    go build -v -o /build/bot ./cmd/bot
+# Build runtime image
+FROM mcr.microsoft.com/dotnet/aspnet:6.0
 
-FROM alpine:latest
+# Copy the app
+WORKDIR /app
+COPY --from=build-env /app/out .
 
-RUN apk add -U --no-cache iputils ca-certificates tzdata
-
-COPY --from=build-env /build /bin
-
-CMD [ "/bin/bot" ]
+# Start the app
+ENTRYPOINT dotnet Weatherman.Bot.dll
