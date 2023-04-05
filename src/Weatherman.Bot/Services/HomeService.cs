@@ -11,7 +11,7 @@ namespace Weatherman.Bot.Services
         private readonly DbContextHelper _dbContextHelper;
         private readonly ICache _cache;
 
-        private const string _cacheKeyPrefix = "userhome";
+        private const string _cacheKeyPrefix = "userhomev2";
 
         private readonly TimeSpan _userHomeCacheExpiration = TimeSpan.FromHours(1);
 

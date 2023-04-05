@@ -22,9 +22,9 @@ namespace Weatherman.Bot.Services
             _logger = logger;
         }
 
-        public async Task<WeatherForecast> GetCurrentForecastAsync(double latitude, double longitude)
+        public async Task<WeatherForecast> GetCurrentForecastAsync(Coordinates coordinates)
         {
-            var forecast = await GetForecastAsync(latitude, longitude);
+            var forecast = await GetForecastAsync(coordinates.Latitude, coordinates.Longitude);
             if (forecast == null)
             {
                 return null;
@@ -63,9 +63,9 @@ namespace Weatherman.Bot.Services
             };
         }
 
-        public async Task<IEnumerable<WeatherSummary>> GetWeeklyForecastAsync(double latitude, double longitude)
+        public async Task<IEnumerable<WeatherSummary>> GetWeeklyForecastAsync(Coordinates coordinates)
         {
-            var forecast = await GetForecastAsync(latitude, longitude);
+            var forecast = await GetForecastAsync(coordinates.Latitude, coordinates.Longitude);
             if (forecast == null)
             {
                 return null;
@@ -87,7 +87,7 @@ namespace Weatherman.Bot.Services
 
         private async Task<Forecast> GetForecastAsync(double latitude, double longitude)
         {
-            var cacheKey = $"forecast-{latitude}-{longitude}";
+            var cacheKey = $"forecastv2-{latitude}-{longitude}";
 
             var forecast = await _cache.GetAsync<Forecast>(cacheKey);
             if (forecast != null)

@@ -24,7 +24,7 @@ namespace Weatherman.Bot.Services
 
         public async Task<LocationDetails> GetGeocodeForLocationStringAsync(string locationQuery)
         {
-            var cacheKey = $"geocode-{locationQuery}";
+            var cacheKey = $"geocodev2-{locationQuery}";
 
             var details = await _cache.GetAsync<LocationDetails>(cacheKey);
             if (details != null)
@@ -40,8 +40,11 @@ namespace Weatherman.Bot.Services
 
             details = new LocationDetails
             {
-                Latitude = location.Position.Latitude,
-                Longitude = location.Position.Longitude,
+                Coordinates = new Coordinates
+                {
+                    Latitude = location.Position.Latitude,
+                    Longitude = location.Position.Longitude
+                },
                 Country = location.Address.CountryName,
                 Region = location.Address.State,
                 City = location.Address.City

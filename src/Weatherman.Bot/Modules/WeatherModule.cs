@@ -49,7 +49,7 @@ namespace Weatherman.Bot.Modules
                 }
             }
 
-            var forecast = await _weatherService.GetCurrentForecastAsync(weatherLocation.Latitude, weatherLocation.Longitude);
+            var forecast = await _weatherService.GetCurrentForecastAsync(weatherLocation.Coordinates);
             if (forecast == null)
             {
                 await RespondAsync("Failed to find a forecast for this location.");
@@ -101,8 +101,8 @@ namespace Weatherman.Bot.Modules
                             .WithIsInline(true)
                             .WithName("Precipitation")
                             .WithValue(
-                                string.Format("There is a {0:P0}% chance of {1} with an estimated accumulation of {2:F1} inches",
-                                    forecast.PrecipitationProbability, forecast.PrecipitationType, precipAccumulation)));
+                                string.Format("There is a {0:P0} chance of {1} with an estimated accumulation of {2:F1} inches",
+                                    forecast.PrecipitationProbability, forecast.PrecipitationType.ToString().ToLower(), precipAccumulation)));
                 }
             }
 
@@ -147,7 +147,7 @@ namespace Weatherman.Bot.Modules
             var embed = new EmbedBuilder()
                 .WithAuthor(GetLocationString(weatherLocation))
                 .WithTitle(Constants.TitleSeeMoreText)
-                .WithUrl(string.Format(Constants.TitleSeeMoreUrlFormat, weatherLocation.Latitude, weatherLocation.Longitude))
+                .WithUrl(string.Format(Constants.TitleSeeMoreUrlFormat, weatherLocation.Coordinates.Latitude, weatherLocation.Coordinates.Longitude))
                 .WithColor(Constants.DefaultEmbedColor)
                 .WithDescription(descriptionBuilder.ToString())
                 .WithFields(fieldBuilders)
@@ -181,7 +181,7 @@ namespace Weatherman.Bot.Modules
                 }
             }
 
-            var weatherSummaries = await _weatherService.GetWeeklyForecastAsync(weatherLocation.Latitude, weatherLocation.Longitude);
+            var weatherSummaries = await _weatherService.GetWeeklyForecastAsync(weatherLocation.Coordinates);
             if (weatherSummaries == null)
             {
                 await RespondAsync("Failed to find a forecast for this location.");
@@ -201,7 +201,7 @@ namespace Weatherman.Bot.Modules
             var embed = new EmbedBuilder()
                 .WithAuthor(GetLocationString(weatherLocation))
                 .WithTitle(Constants.TitleSeeMoreText)
-                .WithUrl(string.Format(Constants.TitleSeeMoreUrlFormat, weatherLocation.Latitude, weatherLocation.Longitude))
+                .WithUrl(string.Format(Constants.TitleSeeMoreUrlFormat, weatherLocation.Coordinates.Latitude, weatherLocation.Coordinates.Longitude))
                 .WithColor(Constants.DefaultEmbedColor)
                 .WithFields(fieldBuilders)
                 .WithFooter(Constants.FooterPoweredByText)
