@@ -99,6 +99,7 @@ namespace Weatherman.Bot.Services
 
             var result = await _darkSky.GetForecast(latitude, longitude, new OptionalParameters
             {
+                MeasurementUnits = "us",
                 DataBlocksToExclude = new() { ExclusionBlocks.Hourly, ExclusionBlocks.Minutely, ExclusionBlocks.Flags }
             });
 
