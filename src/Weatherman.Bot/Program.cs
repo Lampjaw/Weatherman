@@ -47,7 +47,7 @@ IHost host = Host.CreateDefaultBuilder(args)
 
         config.Token = context.Configuration.Get<BotConfiguration>().DiscordToken;
 
-        config.SocketConfig.GatewayIntents = GatewayIntents.None;
+        config.SocketConfig.GatewayIntents = GatewayIntents.Guilds;
 
         config.LogFormat = (message, exception) => $"{message.Source}: {message.Message}";
     })

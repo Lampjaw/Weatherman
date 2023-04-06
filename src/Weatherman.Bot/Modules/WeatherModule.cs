@@ -1,7 +1,6 @@
 ﻿using DarkSky.Models;
 using Discord;
 using Discord.Interactions;
-using System.Globalization;
 using System.Text;
 using TimeZoneNames;
 using Weatherman.Bot.Models;
@@ -28,31 +27,19 @@ namespace Weatherman.Bot.Modules
         [SlashCommand("now", "Get the current forecast.")]
         public async Task GetWeatherNowAsync(string location = null)
         {
-            LocationDetails weatherLocation;
+            await DeferAsync();
 
-            if (string.IsNullOrWhiteSpace(location))
+            var weatherLocation = await ResolveUserLocationAsync(location);
+            if (weatherLocation == null)
             {
-                weatherLocation = await _homeService.GetHomeAsync(Context.User.Id);
-                if (weatherLocation == null)
-                {
-                    await RespondAsync("Please include a location or set a home. To set a home use `/home set <location>`.");
-                    return;
-                }
-            }
-            else
-            {
-                weatherLocation = await _locationService.GetGeocodeForLocationStringAsync(location);
-                if (weatherLocation == null)
-                {
-                    await RespondAsync("Failed to resolve this location.");
-                    return;
-                }
+                return;
             }
 
             var forecast = await _weatherService.GetCurrentForecastAsync(weatherLocation.Coordinates);
             if (forecast == null)
             {
-                await RespondAsync("Failed to find a forecast for this location.");
+                await ModifyOriginalResponseAsync(properties =>
+                    properties.Content = "Failed to find a forecast for this location.");
                 return;
             }
 
@@ -70,7 +57,7 @@ namespace Weatherman.Bot.Modules
             {
                 descriptionBuilder.AppendLine();
 
-                var tzName = TZNames.GetAbbreviationsForTimeZone(forecast.TimeZone, CultureInfo.CurrentCulture.Name);
+                var tzName = TZNames.GetAbbreviationsForTimeZone(forecast.TimeZone, "en-US");
 
                 foreach (var alert in forecast.Alerts)
                 {
@@ -154,37 +141,25 @@ namespace Weatherman.Bot.Modules
                 .WithFooter(Constants.FooterPoweredByText)
                 .Build();
 
-            await RespondAsync(embed: embed);
+            await ModifyOriginalResponseAsync(properties => properties.Embed = embed);
         }
 
         [SlashCommand("week", "Get the weekly forecast.")]
         public async Task GetWeatherWeekAsync(string location = null)
         {
-            LocationDetails weatherLocation;
+            await DeferAsync();
 
-            if (string.IsNullOrWhiteSpace(location))
+            var weatherLocation = await ResolveUserLocationAsync(location);
+            if (weatherLocation == null)
             {
-                weatherLocation = await _homeService.GetHomeAsync(Context.User.Id);
-                if (weatherLocation == null)
-                {
-                    await RespondAsync("Please include a location or set a home. To set a home use `/home set <location>`.");
-                    return;
-                }
-            }
-            else
-            {
-                weatherLocation = await _locationService.GetGeocodeForLocationStringAsync(location);
-                if (weatherLocation == null)
-                {
-                    await RespondAsync("Failed to resolve this location.");
-                    return;
-                }
+                return;
             }
 
             var weatherSummaries = await _weatherService.GetWeeklyForecastAsync(weatherLocation.Coordinates);
             if (weatherSummaries == null)
             {
-                await RespondAsync("Failed to find a forecast for this location.");
+                await ModifyOriginalResponseAsync(properties =>
+                        properties.Content = "Failed to find a forecast for this location.");
                 return;
             }
 
@@ -207,7 +182,31 @@ namespace Weatherman.Bot.Modules
                 .WithFooter(Constants.FooterPoweredByText)
                 .Build();
 
-            await RespondAsync(embed: embed);
+            await ModifyOriginalResponseAsync(properties => properties.Embed = embed);
+        }
+
+        private async Task<LocationDetails> ResolveUserLocationAsync(string location)
+        {
+            if (string.IsNullOrWhiteSpace(location))
+            {
+                var homeLocation = await _homeService.GetHomeAsync(Context.User.Id);
+                if (homeLocation == null)
+                {
+                    await ModifyOriginalResponseAsync(properties =>
+                        properties.Content = "Please include a location or set a home. To set a home use `/home set <location>`.");
+                    return null;
+                }
+                return homeLocation;
+            }
+
+            var weatherLocation = await _locationService.GetGeocodeForLocationStringAsync(location);
+            if (weatherLocation == null)
+            {
+                await ModifyOriginalResponseAsync(properties =>
+                    properties.Content = "Failed to resolve this location.");
+                return null;
+            }
+            return weatherLocation;
         }
 
         private string GetUvIndexString(int uvIndex)
@@ -265,8 +264,7 @@ namespace Weatherman.Bot.Modules
 
         private string GetWeatherSummaryString(WeatherSummary d, LocationDetails location)
         {
-            return string.Format("{1} {2} / {3} - {4}",
-                d.Date,
+            return string.Format("{0} {1} / {2} - {3}",
                 EmojiIconMap.Resolve(d.Icon),
                 ConvertToTempString(d.High, location),
                 ConvertToTempString(d.Low, location),
