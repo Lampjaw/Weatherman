@@ -57,12 +57,15 @@ namespace Weatherman.Bot.Modules
             {
                 descriptionBuilder.AppendLine();
 
-                var tzName = TZNames.GetAbbreviationsForTimeZone(forecast.TimeZone, "en-US");
+                var tzCode = GetTimeZoneCode(forecast.TimeZone);
 
                 foreach (var alert in forecast.Alerts)
                 {
+                    var issueIdx = alert.Title.IndexOf("issued");
+                    var alertTitle = issueIdx > 0 ? alert.Title.Substring(0, issueIdx).Trim() : alert.Title;
+
                     descriptionBuilder.AppendLine(
-                        string.Format("[**{0}**]({1}) Until {2:dd ddd yy HH:mm} {3}", alert.Title, alert.Uri, alert.ExpirationDate, tzName));
+                        string.Format("[**{0}**]({1}) Until {2:dd MMM yy HH:mm} {3}", alertTitle, alert.Uri, alert.ExpirationDate, tzCode));
                 }
             }
 
@@ -190,7 +193,7 @@ namespace Weatherman.Bot.Modules
             if (string.IsNullOrWhiteSpace(location))
             {
                 var homeLocation = await _homeService.GetHomeAsync(Context.User.Id);
-                if (homeLocation == null)
+                if (homeLocation == null || homeLocation.Coordinates == null)
                 {
                     await ModifyOriginalResponseAsync(properties =>
                         properties.Content = "Please include a location or set a home. To set a home use `/home set <location>`.");
@@ -200,7 +203,7 @@ namespace Weatherman.Bot.Modules
             }
 
             var weatherLocation = await _locationService.GetGeocodeForLocationStringAsync(location);
-            if (weatherLocation == null)
+            if (weatherLocation == null || weatherLocation.Coordinates == null)
             {
                 await ModifyOriginalResponseAsync(properties =>
                     properties.Content = "Failed to resolve this location.");
@@ -269,6 +272,19 @@ namespace Weatherman.Bot.Modules
                 ConvertToTempString(d.High, location),
                 ConvertToTempString(d.Low, location),
                 d.Summary);
+        }
+
+        private string GetTimeZoneCode(string timezone)
+        {
+            try
+            {
+                var tzCode = TZNames.GetAbbreviationsForTimeZone(timezone, "en-US");
+                return tzCode?.Generic;
+            }
+            catch(Exception)
+            {
+                return null;
+            }
         }
     }
 }
