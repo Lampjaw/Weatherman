@@ -13,6 +13,8 @@ using Weatherman.Bot.Cache;
 using Serilog;
 using Serilog.Events;
 
+const LogSeverity DiscordLogLevel = LogSeverity.Info;
+
 var logger = new LoggerConfiguration()
     .MinimumLevel.Information()
     .MinimumLevel.Override("Microsoft", LogEventLevel.Error)
@@ -41,20 +43,24 @@ IHost host = Host.CreateDefaultBuilder(args)
     {
         config.SocketConfig = new DiscordSocketConfig
         {
-            LogLevel = LogSeverity.Info,
+            LogLevel = DiscordLogLevel,
             MessageCacheSize = 0
         };
 
         config.Token = context.Configuration.Get<BotConfiguration>().DiscordToken;
 
-        config.SocketConfig.GatewayIntents = GatewayIntents.Guilds;
+        config.SocketConfig.GatewayIntents = GatewayIntents.Guilds | GatewayIntents.GuildMessages | GatewayIntents.DirectMessages;
 
         config.LogFormat = (message, exception) => $"{message.Source}: {message.Message}";
     })
     .UseInteractionService((context, config) =>
     {
-        config.LogLevel = LogSeverity.Info;
+        config.LogLevel = DiscordLogLevel;
         config.UseCompiledLambda = true;
+    })
+    .UseCommandService((context, config) =>
+    {
+        config.LogLevel = DiscordLogLevel;
     })
     .ConfigureServices((hostContext, services) =>
     {
@@ -75,6 +81,7 @@ IHost host = Host.CreateDefaultBuilder(args)
         services.AddSingleton<HomeService>();
 
         services.AddHostedService<InteractionHandler>();
+        services.AddHostedService<CommandHandler>();
 
         services.AddSingleton<DbContextHelper>();
         services.AddDbContext<BotDbContext>();
