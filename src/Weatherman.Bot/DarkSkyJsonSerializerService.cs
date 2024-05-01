@@ -34,6 +34,7 @@ namespace Weatherman.Bot
             {
                 jobj.Property("windBearing").Remove();
                 jobj["uvIndex"] = (int)(jobj["uvIndex"].Value<double>());
+                jobj["nearestStormBearing"] = (int)(jobj["nearestStormBearing"].Value<double>());
             }
 
             var dailyObj = jsonToken.SelectTokens("daily.data[*]");
