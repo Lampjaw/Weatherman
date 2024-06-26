@@ -34,25 +34,34 @@ namespace Weatherman.Bot.Services
 
             _logger.LogInformation("Fetching location for '{0}'", locationQuery);
 
-            var geocodeResponse = await _hereGeocoding.GeocodingAsync(new GeocodeParameters { Query = locationQuery });
-
-            var location = geocodeResponse.Items.OrderByDescending(a => a, new GeocodeComparer()).ToList().First();
-
-            details = new LocationDetails
+            try
             {
-                Coordinates = new Coordinates
+                var geocodeResponse = await _hereGeocoding.GeocodingAsync(new GeocodeParameters { Query = locationQuery });
+
+                var location = geocodeResponse.Items.OrderByDescending(a => a, new GeocodeComparer()).ToList().First();
+
+                details = new LocationDetails
                 {
-                    Latitude = location.Position.Latitude,
-                    Longitude = location.Position.Longitude
-                },
-                Country = location.Address.CountryName,
-                Region = location.Address.State,
-                City = location.Address.City
-            };
+                    Coordinates = new Coordinates
+                    {
+                        Latitude = location.Position.Latitude,
+                        Longitude = location.Position.Longitude
+                    },
+                    Country = location.Address.CountryName,
+                    Region = location.Address.State,
+                    City = location.Address.City
+                };
 
-            await _cache.SetAsync(cacheKey, details, _geocodeCacheExpiration);
+                await _cache.SetAsync(cacheKey, details, _geocodeCacheExpiration);
 
-            return details;
+                return details;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Failed to resolve geocode: '${locationQuery}'");
+            }
+
+            return null;
         }
 
         private class GeocodeComparer : IComparer<GeocodeLocation>
