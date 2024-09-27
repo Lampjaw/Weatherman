@@ -149,7 +149,7 @@ namespace Weatherman.Bot.Modules
             await ModifyOriginalResponseAsync(properties => properties.Embed = embed);
         }
 
-        [SlashCommand("today", "Get the hourly forecast.")]
+        [SlashCommand("hourly", "Get the hourly forecast.")]
         public async Task GetWeatherHourlyAsync(string location = null)
         {
             await DeferAsync();
