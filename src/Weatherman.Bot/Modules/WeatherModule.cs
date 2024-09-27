@@ -35,13 +35,15 @@ namespace Weatherman.Bot.Modules
                 return;
             }
 
-            var forecast = await _weatherService.GetCurrentForecastAsync(weatherLocation.Coordinates);
-            if (forecast == null)
+            var forecastData = await _weatherService.GetCurrentForecastAsync(weatherLocation.Coordinates);
+            if (forecastData == null)
             {
                 await ModifyOriginalResponseAsync(properties =>
                     properties.Content = "Failed to find a forecast for this location.");
                 return;
             }
+
+            var forecast = forecastData.Data;
 
             var descriptionBuilder = new StringBuilder();
 
@@ -57,7 +59,7 @@ namespace Weatherman.Bot.Modules
             {
                 descriptionBuilder.AppendLine();
 
-                var tzCode = GetTimeZoneCode(forecast.TimeZone);
+                var tzCode = GetTimeZoneCode(forecastData.TimeZone);
 
                 foreach (var alert in forecast.Alerts)
                 {
@@ -147,6 +149,47 @@ namespace Weatherman.Bot.Modules
             await ModifyOriginalResponseAsync(properties => properties.Embed = embed);
         }
 
+        [SlashCommand("today", "Get the hourly forecast.")]
+        public async Task GetWeatherHourlyAsync(string location = null)
+        {
+            await DeferAsync();
+
+            var weatherLocation = await ResolveUserLocationAsync(location);
+            if (weatherLocation == null)
+            {
+                return;
+            }
+
+            var forecastData = await _weatherService.GetHourlyForecastAsync(weatherLocation.Coordinates);
+            if (forecastData == null)
+            {
+                await ModifyOriginalResponseAsync(properties =>
+                        properties.Content = "Failed to find a forecast for this location.");
+                return;
+            }
+
+            var fieldBuilders = forecastData.Data
+                .Take(Constants.MaxForecastHours)
+                .Select(a =>
+                {
+                    return new EmbedFieldBuilder()
+                        .WithIsInline(false)
+                        .WithName(a.Date.ToString("HH:mm tt"))
+                        .WithValue(GetWeatherHourlyString(a, weatherLocation));
+                });
+
+            var embed = new EmbedBuilder()
+                .WithAuthor(GetLocationString(weatherLocation))
+                .WithTitle(Constants.TitleSeeMoreText)
+                .WithUrl(string.Format(Constants.TitleSeeMoreUrlFormat, weatherLocation.Coordinates.Latitude, weatherLocation.Coordinates.Longitude))
+                .WithColor(Constants.DefaultEmbedColor)
+                .WithFields(fieldBuilders)
+                .WithFooter(Constants.FooterPoweredByText)
+                .Build();
+
+            await ModifyOriginalResponseAsync(properties => properties.Embed = embed);
+        }
+
         [SlashCommand("week", "Get the weekly forecast.")]
         public async Task GetWeatherWeekAsync(string location = null)
         {
@@ -158,22 +201,22 @@ namespace Weatherman.Bot.Modules
                 return;
             }
 
-            var weatherSummaries = await _weatherService.GetWeeklyForecastAsync(weatherLocation.Coordinates);
-            if (weatherSummaries == null)
+            var forecastData = await _weatherService.GetWeeklyForecastAsync(weatherLocation.Coordinates);
+            if (forecastData == null)
             {
                 await ModifyOriginalResponseAsync(properties =>
                         properties.Content = "Failed to find a forecast for this location.");
                 return;
             }
 
-            var fieldBuilders = weatherSummaries
+            var fieldBuilders = forecastData.Data
                 .Take(Constants.MaxForecastDays)
                 .Select(a =>
                 {
                     return new EmbedFieldBuilder()
                         .WithIsInline(false)
                         .WithName(a.Date.ToString("dddd MMMM d"))
-                        .WithValue(GetWeatherSummaryString(a, weatherLocation));
+                        .WithValue(GetWeatherDailyString(a, weatherLocation));
                 });
 
             var embed = new EmbedBuilder()
@@ -265,7 +308,20 @@ namespace Weatherman.Bot.Modules
             return sb.ToString();
         }
 
-        private string GetWeatherSummaryString(WeatherSummary d, LocationDetails location)
+        private string GetWeatherHourlyString(ForecastHour d, LocationDetails location)
+        {
+            return string.Format("{0} {1} | {2} | :droplet: {3:P0} {4:F1} in | :dash: {5:N0} mph {6}",
+                EmojiIconMap.Resolve(d.Icon),
+                d.Summary,
+                ConvertToTempString(d.Temperature, location),
+                d.PrecipitationProbability,
+                d.PrecipitationIntensity,
+                d.WindSpeed,
+                WindBearingConverter.ConvertToWindDirection(d.WindBearing),
+                d.Summary);
+        }
+
+        private string GetWeatherDailyString(ForecastDay d, LocationDetails location)
         {
             return string.Format("{0} {1} / {2} - {3}",
                 EmojiIconMap.Resolve(d.Icon),

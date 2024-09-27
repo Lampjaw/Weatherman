@@ -22,7 +22,7 @@ namespace Weatherman.Bot.Services
             _logger = logger;
         }
 
-        public async Task<WeatherForecast> GetCurrentForecastAsync(Coordinates coordinates)
+        public async Task<ForecastData<ForecastNow>> GetCurrentForecastAsync(Coordinates coordinates)
         {
             var forecast = await GetForecastAsync(coordinates.Latitude, coordinates.Longitude);
             if (forecast == null)
@@ -40,30 +40,32 @@ namespace Weatherman.Bot.Services
 
             var currentDay = forecast.Daily.Data[0];
 
-            return new WeatherForecast
+            return new ForecastData<ForecastNow>
             {
                 TimeZone = forecast.TimeZone,
-                Condition = forecast.Currently.Summary,
-                Temperature = temp,
-                Humidity = humidity,
-                WindChill = windChill,
-                WindSpeed = windSpeed,
-                WindGust = currentDay.WindGust.GetValueOrDefault(),
-                ForecastHigh = currentDay.TemperatureHigh.GetValueOrDefault(),
-                ForecastLow = currentDay.TemperatureLow.GetValueOrDefault(),
-                HeatIndex = heatIndex,
-                Icon = forecast.Currently.Icon,
-                UVIndex = currentDay.UvIndex.GetValueOrDefault(),
-                PrecipitationProbability = currentDay.PrecipProbability.GetValueOrDefault(),
-                PrecipitationType = currentDay.PrecipType,
-                PrecipitationIntensity = currentDay.PrecipIntensity.GetValueOrDefault(),
-                PrecipitationIntensityMax = currentDay.PrecipIntensityMax,
-                SnowAccumulation = currentDay.PrecipAccumulation.GetValueOrDefault(),
-                Alerts = alerts
+                Data = {
+                    Condition = forecast.Currently.Summary,
+                    Temperature = temp,
+                    Humidity = humidity,
+                    WindChill = windChill,
+                    WindSpeed = windSpeed,
+                    WindGust = currentDay.WindGust.GetValueOrDefault(),
+                    ForecastHigh = currentDay.TemperatureHigh.GetValueOrDefault(),
+                    ForecastLow = currentDay.TemperatureLow.GetValueOrDefault(),
+                    HeatIndex = heatIndex,
+                    Icon = forecast.Currently.Icon,
+                    UVIndex = currentDay.UvIndex.GetValueOrDefault(),
+                    PrecipitationProbability = currentDay.PrecipProbability.GetValueOrDefault(),
+                    PrecipitationType = currentDay.PrecipType,
+                    PrecipitationIntensity = currentDay.PrecipIntensity.GetValueOrDefault(),
+                    PrecipitationIntensityMax = currentDay.PrecipIntensityMax,
+                    SnowAccumulation = currentDay.PrecipAccumulation.GetValueOrDefault(),
+                    Alerts = alerts
+                }
             };
         }
 
-        public async Task<IEnumerable<WeatherSummary>> GetWeeklyForecastAsync(Coordinates coordinates)
+        public async Task<ForecastData<List<ForecastHour>>> GetHourlyForecastAsync(Coordinates coordinates)
         {
             var forecast = await GetForecastAsync(coordinates.Latitude, coordinates.Longitude);
             if (forecast == null)
@@ -71,18 +73,50 @@ namespace Weatherman.Bot.Services
                 return null;
             }
 
-            return forecast.Daily.Data.Select(a =>
+            return new ForecastData<List<ForecastHour>>
             {
-                return new WeatherSummary
-                {
-                    TimeZone = forecast.TimeZone,
-                    Date = a.DateTime,
-                    High = a.TemperatureHigh.GetValueOrDefault(),
-                    Low = a.TemperatureLow.GetValueOrDefault(),
-                    Icon = a.Icon,
-                    Summary = a.Summary
-                };
-            });
+                TimeZone = forecast.TimeZone,
+                Data = forecast.Hourly.Data.Select(a =>
+                    new ForecastHour
+                    {
+                        Date = a.DateTime,
+                        Temperature = a.Temperature.GetValueOrDefault(),
+                        FeelsLikeTemperature  = a.ApparentTemperature.GetValueOrDefault(),
+                        PrecipitationProbability = a.PrecipProbability.GetValueOrDefault(),
+                        PrecipitationIntensity = a.PrecipIntensity.GetValueOrDefault(),
+                        CloudCover = a.CloudCover.GetValueOrDefault(),
+                        Humidity = a.Humidity.GetValueOrDefault(),
+                        WindSpeed = a.WindSpeed.GetValueOrDefault(),
+                        WindBearing = a.WindBearing,
+                        Icon = a.Icon,
+                        Summary = a.Summary
+                    }
+                ).ToList()
+            };
+        }
+
+        public async Task<ForecastData<List<ForecastDay>>> GetWeeklyForecastAsync(Coordinates coordinates)
+        {
+            var forecast = await GetForecastAsync(coordinates.Latitude, coordinates.Longitude);
+            if (forecast == null)
+            {
+                return null;
+            }
+
+            return new ForecastData<List<ForecastDay>>
+            {
+                TimeZone = forecast.TimeZone,
+                Data = forecast.Daily.Data.Select(a =>
+                    new ForecastDay
+                    {
+                        Date = a.DateTime,
+                        High = a.Temperature.GetValueOrDefault(),
+                        Low = a.TemperatureLow.GetValueOrDefault(),
+                        Icon = a.Icon,
+                        Summary = a.Summary
+                    }
+                ).ToList()
+            };
         }
 
         private async Task<Forecast> GetForecastAsync(double latitude, double longitude)
@@ -100,7 +134,7 @@ namespace Weatherman.Bot.Services
             var result = await _darkSky.GetForecast(latitude, longitude, new OptionalParameters
             {
                 MeasurementUnits = "us",
-                DataBlocksToExclude = new() { ExclusionBlocks.Hourly, ExclusionBlocks.Minutely, ExclusionBlocks.Flags }
+                DataBlocksToExclude = new() { ExclusionBlocks.Minutely, ExclusionBlocks.Flags }
             });
 
             if (result?.IsSuccessStatus != true)

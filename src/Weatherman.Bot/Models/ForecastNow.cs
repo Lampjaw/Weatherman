@@ -2,9 +2,8 @@
 
 namespace Weatherman.Bot.Models
 {
-    public class WeatherForecast
+    public class ForecastNow
     {
-		public string TimeZone { get; set; }
 		public string Condition { get; set; }
 		public double Temperature { get; set; }
 		public double Humidity { get; set; }
