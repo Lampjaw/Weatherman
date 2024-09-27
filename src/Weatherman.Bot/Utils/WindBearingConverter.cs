@@ -2,7 +2,7 @@
 {
     public static class WindBearingConverter
     {
-        public static string ConvertToWindDirection(double? bearing)
+        public static string ConvertToWindDirection(int? bearing)
         {
             if (bearing == null)
             {

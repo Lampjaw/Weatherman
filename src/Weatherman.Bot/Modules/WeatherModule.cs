@@ -10,7 +10,7 @@ using Weatherman.Bot.Utils;
 namespace Weatherman.Bot.Modules
 {
     [Group("weather", "Weather commands")]
-    [EnabledInDm(false)]
+    [EnabledInDm(true)]
     public class WeatherModule : InteractionModuleBase<SocketInteractionContext>
     {
         private readonly LocationService _locationService;

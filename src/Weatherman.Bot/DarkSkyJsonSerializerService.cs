@@ -47,6 +47,15 @@ namespace Weatherman.Bot
                 });
             }
 
+            var hourlyData = jsonToken.SelectTokens("hourly.data[*]");
+            if (hourlyData != null)
+            {
+                hourlyData.Cast<JObject>().ToList().ForEach(a =>
+                {
+                    a["windBearing"] = (int)(a["windBearing"].Value<double>());
+                });
+            }
+
             return jsonToken.ToString();
         }
     }

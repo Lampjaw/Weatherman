@@ -12,7 +12,7 @@ namespace Weatherman.Bot.Models
         public double CloudCover { get; set; }
         public double Humidity { get; set; }
         public double WindSpeed { get; set; }
-        public double? WindBearing { get; set; }
+        public int? WindBearing { get; set; }
         public Icon Icon { get; set; }
         public string Summary { get; set; }
     }
