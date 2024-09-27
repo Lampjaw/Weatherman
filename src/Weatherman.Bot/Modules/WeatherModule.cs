@@ -152,6 +152,17 @@ namespace Weatherman.Bot.Modules
         [SlashCommand("hourly", "Get the hourly forecast.")]
         public async Task GetWeatherHourlyAsync(string location = null)
         {
+            await ProcessGetWeatherHourly(0, location);
+        }
+
+        [ComponentInteraction("forecast_hourly_*_(*)", true)]
+        public async Task GetWeatherHourly_ButtonAsync(int page, string location)
+        {
+            await ProcessGetWeatherHourly(page, location);
+        }
+
+        private async Task ProcessGetWeatherHourly(int page, string location = null)
+        {
             await DeferAsync();
 
             var weatherLocation = await ResolveUserLocationAsync(location);
@@ -168,14 +179,34 @@ namespace Weatherman.Bot.Modules
                 return;
             }
 
+            var tz = GetTimeZoneCode(forecastData.TimeZone);
+
             var fieldBuilders = forecastData.Data
-                .Take(Constants.MaxForecastHours)
+                .Skip(page * Constants.ForecastHoursPerPageLimit)
+                .Take(Constants.ForecastHoursPerPageLimit)
                 .Select(a =>
                 {
+                    var tzTime = TimeZoneInfo.ConvertTimeBySystemTimeZoneId(a.Date, forecastData.TimeZone);
+
+                    var fieldName = string.Format(
+                        "{0} - {1} {2}",
+                        tzTime.ToString("h:mm tt"),
+                        EmojiIconMap.Resolve(a.Icon),
+                        a.Summary);
+
+                    var fieldValue = string.Format(
+                        "{0} | :droplet: {1:N0}% ({2:F2} in) | :dash: {3:N0} mph {4}",
+                        ConvertToTempString(a.Temperature, weatherLocation),
+                        a.PrecipitationProbability,
+                        a.PrecipitationIntensity,
+                        a.WindSpeed,
+                        WindBearingConverter.ConvertToWindDirection(a.WindBearing),
+                        a.Summary);
+
                     return new EmbedFieldBuilder()
                         .WithIsInline(false)
-                        .WithName(a.Date.ToString("HH:mm tt"))
-                        .WithValue(GetWeatherHourlyString(a, weatherLocation));
+                        .WithName(fieldName)
+                        .WithValue(fieldValue);
                 });
 
             var embed = new EmbedBuilder()
@@ -187,8 +218,24 @@ namespace Weatherman.Bot.Modules
                 .WithFooter(Constants.FooterPoweredByText)
                 .Build();
 
-            await ModifyOriginalResponseAsync(properties => properties.Embed = embed);
+            var component = new ComponentBuilder()
+                .WithButton(
+                    customId: $"forecast_hourly_{page - 1}_({location})",
+                    emote: new Emoji("⬅️"),
+                    disabled: page == 0)
+                .WithButton(
+                    customId: $"forecast_hourly_{page + 1}_({location})",
+                    emote: new Emoji("➡️"),
+                    disabled: page >= Constants.MaxForecastHours / Constants.ForecastHoursPerPageLimit - 1)
+                .Build();
+
+            await ModifyOriginalResponseAsync(properties =>
+            {
+                properties.Embed = embed;
+                properties.Components = component;
+            });
         }
+
 
         [SlashCommand("week", "Get the weekly forecast.")]
         public async Task GetWeatherWeekAsync(string location = null)
@@ -306,19 +353,6 @@ namespace Weatherman.Bot.Modules
             sb.Append(location.Country);
 
             return sb.ToString();
-        }
-
-        private string GetWeatherHourlyString(ForecastHour d, LocationDetails location)
-        {
-            return string.Format("{0} {1} | {2} | :droplet: {3:P0} {4:F1} in | :dash: {5:N0} mph {6}",
-                EmojiIconMap.Resolve(d.Icon),
-                d.Summary,
-                ConvertToTempString(d.Temperature, location),
-                d.PrecipitationProbability,
-                d.PrecipitationIntensity,
-                d.WindSpeed,
-                WindBearingConverter.ConvertToWindDirection(d.WindBearing),
-                d.Summary);
         }
 
         private string GetWeatherDailyString(ForecastDay d, LocationDetails location)

@@ -1,6 +1,7 @@
 ﻿using DarkSky.Models;
 using DarkSky.Services;
 using Microsoft.Extensions.Logging;
+using Newtonsoft.Json.Linq;
 using Weatherman.Bot.Cache;
 using Weatherman.Bot.Models;
 using Weatherman.Bot.Utils;
@@ -43,7 +44,7 @@ namespace Weatherman.Bot.Services
             return new ForecastData<ForecastNow>
             {
                 TimeZone = forecast.TimeZone,
-                Data = {
+                Data = new ForecastNow {
                     Condition = forecast.Currently.Summary,
                     Temperature = temp,
                     Humidity = humidity,
@@ -82,10 +83,10 @@ namespace Weatherman.Bot.Services
                         Date = a.DateTime,
                         Temperature = a.Temperature.GetValueOrDefault(),
                         FeelsLikeTemperature  = a.ApparentTemperature.GetValueOrDefault(),
-                        PrecipitationProbability = a.PrecipProbability.GetValueOrDefault(),
+                        PrecipitationProbability = a.PrecipProbability.GetValueOrDefault() * 100,
                         PrecipitationIntensity = a.PrecipIntensity.GetValueOrDefault(),
-                        CloudCover = a.CloudCover.GetValueOrDefault(),
-                        Humidity = a.Humidity.GetValueOrDefault(),
+                        CloudCover = a.CloudCover.GetValueOrDefault() * 100,
+                        Humidity = a.Humidity.GetValueOrDefault() * 100,
                         WindSpeed = a.WindSpeed.GetValueOrDefault(),
                         WindBearing = a.WindBearing,
                         Icon = a.Icon,
@@ -110,7 +111,7 @@ namespace Weatherman.Bot.Services
                     new ForecastDay
                     {
                         Date = a.DateTime,
-                        High = a.Temperature.GetValueOrDefault(),
+                        High = a.TemperatureHigh.GetValueOrDefault(),
                         Low = a.TemperatureLow.GetValueOrDefault(),
                         Icon = a.Icon,
                         Summary = a.Summary

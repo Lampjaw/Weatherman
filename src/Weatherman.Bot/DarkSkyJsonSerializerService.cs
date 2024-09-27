@@ -32,7 +32,7 @@ namespace Weatherman.Bot
             var jobj = (JObject)jsonToken.SelectToken("currently");
             if (jobj != null)
             {
-                jobj.Property("windBearing").Remove();
+                jobj["windBearing"] = (int)(jobj["windBearing"].Value<double>());
                 jobj["uvIndex"] = (int)(jobj["uvIndex"].Value<double>());
                 jobj["nearestStormBearing"] = (int)(jobj["nearestStormBearing"].Value<double>());
             }
@@ -42,7 +42,7 @@ namespace Weatherman.Bot
             {
                 dailyObj.Cast<JObject>().ToList().ForEach(a =>
                 {
-                    a.Property("windBearing").Remove();
+                    a["windBearing"] = (int)(a["windBearing"].Value<double>());
                     a["uvIndex"] = (int)(a["uvIndex"].Value<double>());
                 });
             }
@@ -53,6 +53,7 @@ namespace Weatherman.Bot
                 hourlyData.Cast<JObject>().ToList().ForEach(a =>
                 {
                     a["windBearing"] = (int)(a["windBearing"].Value<double>());
+                    a["uvIndex"] = (int)(a["uvIndex"].Value<double>());
                 });
             }
 
