@@ -43,7 +43,9 @@ namespace Weatherman.Bot
 
                 if (!result.IsSuccess && result.Error != CommandError.UnknownCommand)
                 {
-                    await context.Channel.SendMessageAsync(result.ErrorReason);
+                    Logger.LogWarning($"Failed to handle command: {result.Error}: {result.ErrorReason}");
+
+                    await context.Channel.SendMessageAsync("Something went wrong processing this request.");
                 }
             }
             catch (Exception ex)

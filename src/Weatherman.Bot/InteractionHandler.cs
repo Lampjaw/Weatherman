@@ -47,9 +47,11 @@ namespace Weatherman.Bot
 
                 var result = await _interactionService.ExecuteCommandAsync(context, _serviceProvider);
 
-                if (!result.IsSuccess)
+                if (!result.IsSuccess && result.Error != InteractionCommandError.UnknownCommand)
                 {
-                    await context.Interaction.RespondAsync(result.ErrorReason);
+                    Logger.LogWarning($"Unable to execute interaction: {result.Error}: {result.ErrorReason}");
+
+                    await context.Interaction.RespondAsync("Something went wrong processing this request.");
                 }
             }
             catch (Exception ex)

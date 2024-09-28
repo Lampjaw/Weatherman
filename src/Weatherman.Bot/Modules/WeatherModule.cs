@@ -1,6 +1,7 @@
 ﻿using DarkSky.Models;
 using Discord;
 using Discord.Interactions;
+using Discord.WebSocket;
 using System.Text;
 using TimeZoneNames;
 using Weatherman.Bot.Models;
@@ -29,7 +30,7 @@ namespace Weatherman.Bot.Modules
         {
             await DeferAsync();
 
-            var weatherLocation = await ResolveUserLocationAsync(location);
+            var weatherLocation = await ResolveUserLocationAsync(location, Context.User.Id);
             if (weatherLocation == null)
             {
                 return;
@@ -152,20 +153,30 @@ namespace Weatherman.Bot.Modules
         [SlashCommand("hourly", "Get the hourly forecast.")]
         public async Task GetWeatherHourlyAsync(string location = null)
         {
-            await ProcessGetWeatherHourly(0, location);
+            await ProcessGetWeatherHourly(0, Context.User.Id, location);
         }
 
         [ComponentInteraction("forecast_hourly_*_(*)", true)]
-        public async Task GetWeatherHourly_ButtonAsync(int page, string location)
+        public async Task GetWeatherHourly_ButtonAsync(int page, string encodedLocation)
         {
-            await ProcessGetWeatherHourly(page, location);
+            var originalUserId = (Context.Interaction as SocketMessageComponent).Message.Interaction.User.Id;
+
+            if (Context.Interaction.User.Id != originalUserId)
+            {
+                await RespondAsync();
+                return;
+            }
+
+            var location = string.IsNullOrEmpty(encodedLocation) ? null : Uri.UnescapeDataString(encodedLocation);
+
+            await ProcessGetWeatherHourly(page, originalUserId, location);
         }
 
-        private async Task ProcessGetWeatherHourly(int page, string location = null)
+        private async Task ProcessGetWeatherHourly(int page, ulong userId, string location = null)
         {
             await DeferAsync();
 
-            var weatherLocation = await ResolveUserLocationAsync(location);
+            var weatherLocation = await ResolveUserLocationAsync(location, userId);
             if (weatherLocation == null)
             {
                 return;
@@ -218,13 +229,15 @@ namespace Weatherman.Bot.Modules
                 .WithFooter(Constants.FooterPoweredByText)
                 .Build();
 
+            var encodedLocation = string.IsNullOrEmpty(location) ? null : Uri.EscapeDataString(location);
+
             var component = new ComponentBuilder()
                 .WithButton(
-                    customId: $"forecast_hourly_{page - 1}_({location})",
+                    customId: $"forecast_hourly_{page - 1}_({encodedLocation})",
                     emote: new Emoji("⬅️"),
                     disabled: page == 0)
                 .WithButton(
-                    customId: $"forecast_hourly_{page + 1}_({location})",
+                    customId: $"forecast_hourly_{page + 1}_({encodedLocation})",
                     emote: new Emoji("➡️"),
                     disabled: page >= Constants.MaxForecastHours / Constants.ForecastHoursPerPageLimit - 1)
                 .Build();
@@ -242,7 +255,7 @@ namespace Weatherman.Bot.Modules
         {
             await DeferAsync();
 
-            var weatherLocation = await ResolveUserLocationAsync(location);
+            var weatherLocation = await ResolveUserLocationAsync(location, Context.User.Id);
             if (weatherLocation == null)
             {
                 return;
@@ -270,7 +283,7 @@ namespace Weatherman.Bot.Modules
                 .WithAuthor(GetLocationString(weatherLocation))
                 .WithTitle(Constants.TitleSeeMoreText)
                 .WithUrl(string.Format(Constants.TitleSeeMoreUrlFormat, weatherLocation.Coordinates.Latitude, weatherLocation.Coordinates.Longitude))
-                .WithColor(Constants.DefaultEmbedColor)
+                .WithColor(new Color(Constants.DefaultEmbedColor))
                 .WithFields(fieldBuilders)
                 .WithFooter(Constants.FooterPoweredByText)
                 .Build();
@@ -278,11 +291,11 @@ namespace Weatherman.Bot.Modules
             await ModifyOriginalResponseAsync(properties => properties.Embed = embed);
         }
 
-        private async Task<LocationDetails> ResolveUserLocationAsync(string location)
+        private async Task<LocationDetails> ResolveUserLocationAsync(string location, ulong userId)
         {
             if (string.IsNullOrWhiteSpace(location))
             {
-                var homeLocation = await _homeService.GetHomeAsync(Context.User.Id);
+                var homeLocation = await _homeService.GetHomeAsync(userId);
                 if (homeLocation == null || homeLocation.Coordinates == null)
                 {
                     await ModifyOriginalResponseAsync(properties =>

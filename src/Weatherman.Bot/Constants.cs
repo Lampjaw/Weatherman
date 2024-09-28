@@ -9,6 +9,6 @@
         public const int MaxForecastDays = 5;
         public const int MaxForecastHours = 24;
         public const int ForecastHoursPerPageLimit = 4;
-        public const uint DefaultEmbedColor = 0x070707;
+        public const uint DefaultEmbedColor = 0x2196f3;
     }
 }
