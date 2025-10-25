@@ -1,0 +1,20 @@
+name: weatherman
+services:
+  discord:
+    image: docker.voidwell.com/weatherman/discord:latest
+    restart: always
+    environment:
+      RedisAddress: "redis:6379"
+      DiscordToken: ""
+      DiscordClientId: ""
+      HereApiKey: ""
+      PirateWeatherKey: ""
+      OwnerId: ""
+    volumes:
+      - /data/weatherman/weatherplugin:/data
+
+  redis:
+    image: redis:alpine
+    restart: always
+    ports:
+      - "6379"
