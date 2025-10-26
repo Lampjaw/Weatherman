@@ -5,11 +5,11 @@ services:
     restart: always
     environment:
       RedisAddress: "redis:6379"
-      DiscordToken: ""
-      DiscordClientId: ""
-      HereApiKey: ""
-      PirateWeatherKey: ""
-      OwnerId: ""
+      DiscordToken: ${DiscordToken}
+      DiscordClientId: ${DiscordClientId}
+      HereApiKey: ${HereApiKey}
+      PirateWeatherKey: ${PirateWeatherKey}
+      OwnerId: ${OwnerId}
     volumes:
       - /data/weatherman/weatherplugin:/data
 
