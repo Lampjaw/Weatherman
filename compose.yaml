@@ -1,20 +1,26 @@
 name: weatherman
 services:
   discord:
-    image: docker.voidwell.com/weatherman/discord:latest
-    restart: always
+    #image: docker.voidwell.com/weatherman/discord
+    build:
+      context: ./
+      dockerfile: Dockerfile.debug
+    depends_on:
+      - redis
     environment:
+      GuildId: "${GUILD_ID}"
+      OwnerId: "${OWNER_ID}"
       RedisAddress: "redis:6379"
       DiscordToken: ${DiscordToken}
       DiscordClientId: ${DiscordClientId}
-      HereApiKey: ${HereApiKey}
-      PirateWeatherKey: ${PirateWeatherKey}
-      OwnerId: ${OwnerId}
+      HereApiKey: "${HERE_API_KEY}"
+      PirateWeatherKey: "${PIRATE_WEATHER_KEY}"
+      LoggingOutput: "flat"
     volumes:
-      - /data/weatherman/weatherplugin:/data
+      - ./src/:/app
+      - /data/:/data
 
   redis:
     image: redis:alpine
-    restart: always
-    ports:
+    ports: 
       - "6379"

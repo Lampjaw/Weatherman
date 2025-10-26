@@ -17,5 +17,5 @@
 obj
 bin
 appsettings.dev.json
-docker-compose.dev.yml
+compose.dev.env
 /src/data

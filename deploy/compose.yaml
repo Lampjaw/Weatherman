@@ -1,0 +1,14 @@
+name: weatherman
+services:
+  discord:
+    image: docker.voidwell.com/weatherman/discord:${TAG_VERSION-latest}
+    restart: always
+    environment:
+      RedisAddress: "${REDIS_ADDRESS?missing redis address}"
+      DiscordToken: "${DISCORD_TOKEN?missing discord token}"
+      DiscordClientId: "${DISCORD_CLIENT_ID?missing discord client id}"
+      HereApiKey: "${HERE_API_KEY?missing here api key}"
+      PirateWeatherKey: "${PIRATE_WEATHER_KEY?missing pirate weather key}"
+      OwnerId: "${OWNER_ID?missing discord owner id}"
+    volumes:
+      - ${VOLUME_ROOT?missing volume root}/weatherplugin:/data

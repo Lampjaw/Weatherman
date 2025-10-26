@@ -1,6 +1,6 @@
 Dockerfile
-docker-compose.yml
-docker-compose.dev.yml
+compose.yaml
+compose.dev.env
 weatherman.exe
 .git
 .gitignore
