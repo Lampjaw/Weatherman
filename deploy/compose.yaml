@@ -3,6 +3,7 @@ services:
   weatherman:
     image: docker.voidwell.com/wakeops/weatherman:${TAG_VERSION-latest}
     restart: always
+    network_mode: host
     extra_hosts:
       - "host.docker.internal:host-gateway"
     environment:
