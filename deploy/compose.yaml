@@ -3,6 +3,8 @@ services:
   weatherman:
     image: docker.voidwell.com/wakeops/weatherman:${TAG_VERSION-latest}
     restart: always
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       RedisAddress: "${REDIS_ADDRESS?missing redis address}"
       DiscordToken: "${DISCORD_TOKEN?missing discord token}"
