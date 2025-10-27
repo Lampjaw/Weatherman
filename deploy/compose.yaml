@@ -1,7 +1,7 @@
 name: weatherman
 services:
-  discord:
-    image: docker.voidwell.com/weatherman/discord:${TAG_VERSION-latest}
+  weatherman:
+    image: docker.voidwell.com/wakeops/weatherman:${TAG_VERSION-latest}
     restart: always
     environment:
       RedisAddress: "${REDIS_ADDRESS?missing redis address}"

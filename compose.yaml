@@ -1,7 +1,7 @@
 name: weatherman
 services:
   discord:
-    #image: docker.voidwell.com/weatherman/discord
+    #image: docker.voidwell.com/wakeops/weatherman
     build:
       context: ./
       dockerfile: Dockerfile.debug
