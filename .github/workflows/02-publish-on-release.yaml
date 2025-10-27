@@ -1,0 +1,15 @@
+name: Publish Docker Image On Release
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  docker-publish:
+    uses: wakeops/ci/.github/workflows/docker-publish.yaml@main
+    with:
+      image_name: ${{ github.event.repository.name }}
+      tag: ${{ github.event.release.tag_name }}
